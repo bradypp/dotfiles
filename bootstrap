@@ -1,136 +1,22 @@
 #!/usr/bin/bash
-# Deploy the base package plus saved or explicitly selected profiles.
 set -euo pipefail
-
-repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
-readonly repo
-readonly state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
-readonly state_file="$state_dir/profiles"
-base_only=false
-selected_profiles=()
-stow_packages=(base)
-setup_scripts=()
-old_stow_packages=(base)
-
-usage() {
-    printf 'Usage: %s [--base-only | PROFILE...]\n' "${0##*/}"
-    printf 'Available profiles: kde\n'
-}
-
-append_unique() {
-    local -n values=$1
-    local candidate=$2 existing
-    for existing in "${values[@]}"; do
-        [[ $existing == "$candidate" ]] && return 0
-    done
-    values+=("$candidate")
-}
-
-read_profile() {
-    local profile=$1 destination=$2
-    local profile_file="$repo/profiles/$profile"
-    local kind value extra
-
-    if [[ ! $profile =~ ^[a-z0-9][a-z0-9-]*$ || ! -r $profile_file ]]; then
-        printf 'Unknown profile: %s\n' "$profile" >&2
-        return 1
-    fi
-
-    while read -r kind value extra; do
-        [[ -n $kind && ${kind:0:1} != '#' ]] || continue
-        if [[ -n ${extra:-} || -z ${value:-} ]]; then
-            printf 'Invalid profile entry in %s: %s %s %s\n' \
-                "$profile_file" "$kind" "${value:-}" "${extra:-}" >&2
-            return 1
-        fi
-        case "$kind:$destination" in
-            stow:current)
-                [[ -d $repo/stow/$value ]] || {
-                    printf 'Missing Stow package: %s\n' "$value" >&2
-                    return 1
-                }
-                append_unique stow_packages "$value"
-                ;;
-            setup:current)
-                [[ -x $repo/setup/$value ]] || {
-                    printf 'Missing setup script: %s\n' "$value" >&2
-                    return 1
-                }
-                append_unique setup_scripts "$value"
-                ;;
-            stow:old)
-                [[ -d $repo/stow/$value ]] && append_unique old_stow_packages "$value"
-                ;;
-            setup:old) ;;
-            *)
-                printf 'Unknown profile action in %s: %s\n' "$profile_file" "$kind" >&2
-                return 1
-                ;;
-        esac
-    done < "$profile_file"
-}
-
-if (($#)); then
-    if [[ $1 == --base-only ]]; then
-        (($# == 1)) || { usage >&2; exit 2; }
-        base_only=true
-    else
-        for profile in "$@"; do
-            [[ $profile != -* ]] || { usage >&2; exit 2; }
-            append_unique selected_profiles "$profile"
-        done
-    fi
-elif [[ -r $state_file ]]; then
-    while read -r profile; do
-        [[ -n $profile ]] && append_unique selected_profiles "$profile"
-    done < "$state_file"
-fi
-
-if [[ $base_only == false ]]; then
-    for profile in "${selected_profiles[@]}"; do
-        read_profile "$profile" current
-    done
-else
-    selected_profiles=()
-fi
-
-if [[ -r $state_file ]]; then
-    while read -r profile; do
-        [[ -n $profile ]] || continue
-        if [[ -r $repo/profiles/$profile ]]; then
-            read_profile "$profile" old
-        fi
-    done < "$state_file"
-fi
-
-if ! command -v stow >/dev/null 2>&1; then
-    printf 'GNU Stow is required to deploy these dotfiles.\n' >&2
-    exit 1
-fi
-
-for package in "${old_stow_packages[@]}"; do
-    keep=false
-    for selected in "${stow_packages[@]}"; do
-        [[ $package == "$selected" ]] && keep=true
-    done
-    if [[ $keep == false ]]; then
-        stow --delete --no-folding --dir="$repo/stow" --target="$HOME" "$package"
-    fi
+repo=${DOTFILES_COMMAND_ROOT:-$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)}
+skip_install=false
+machine_args=()
+while (($#)); do
+    case $1 in
+        --skip-install) skip_install=true; shift ;;
+        --machine)
+            (($# >= 2)) || { printf '%s\n' 'bootstrap: --machine needs a name' >&2; exit 2; }
+            machine_args=(--machine "$2"); shift 2 ;;
+        --no-machine) machine_args=(--no-machine); shift ;;
+        -h|--help)
+            printf '%s\n' 'Usage: ./bootstrap [--skip-install] [--machine NAME|--no-machine]'
+            exit 0 ;;
+        *) printf 'bootstrap: unknown argument: %s\n' "$1" >&2; exit 2 ;;
+    esac
 done
-
-stow --restow --no-folding --dir="$repo/stow" --target="$HOME" "${stow_packages[@]}"
-
-mkdir -p "$state_dir"
-printf '%s\n' "${selected_profiles[@]}" > "$state_file"
-
-for setup_script in "${setup_scripts[@]}"; do
-    "$repo/setup/$setup_script"
-done
-
-printf '\nDeployed Stow packages: %s\n' "${stow_packages[*]}"
-if ((${#selected_profiles[@]})); then
-    printf 'Active profiles: %s\n' "${selected_profiles[*]}"
-else
-    printf 'Active profiles: base only\n'
-fi
-printf 'Start a new shell to load the managed .zshrc.\n'
+$skip_install || "$repo/install"
+"$repo/deploy" "${machine_args[@]}"
+"$repo/configure" "${machine_args[@]}"
+"$repo/verify"

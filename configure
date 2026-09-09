@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+set -euo pipefail
+script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
+source "$script_repo/lib/dotfiles.sh"
+
+machine=''
+while (($#)); do
+    case $1 in
+        --machine)
+            (($# >= 2)) || { printf '%s\n' 'configure: --machine needs a name' >&2; exit 2; }
+            machine=$2; shift 2 ;;
+        --no-machine) machine=none; shift ;;
+        -h|--help)
+            printf '%s\n' 'Usage: ./configure [--machine NAME|--no-machine]'
+            exit 0 ;;
+        *) printf 'configure: unknown argument: %s\n' "$1" >&2; exit 2 ;;
+    esac
+done
+
+dotfiles_resolve_context "$machine"
+for setup_dir in "${DOTFILES_SETUP_DIRS[@]}"; do
+    for setup_script in "$DOTFILES_REPO/setup/$setup_dir"/*; do
+        [[ -x $setup_script && -f $setup_script ]] || continue
+        "$setup_script"
+    done
+done
+if [[ -n $DOTFILES_MACHINE_CONFIG && -x $DOTFILES_REPO/setup/hardware ]]; then
+    "$DOTFILES_REPO/setup/hardware" "$DOTFILES_MACHINE_CONFIG"
+fi

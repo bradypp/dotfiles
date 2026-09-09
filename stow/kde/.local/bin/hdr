@@ -1,21 +1,45 @@
 #!/bin/sh
-# Control HDR/WCG on HDMI-A-1 via the same KScreen config System Settings uses.
-# Bare `hdr` toggles, `hdr on|off` forces, `hdr status` prints enabled|disabled.
-OUT=HDMI-A-1
+# Control HDR/WCG for the output declared by the selected machine.
+set -eu
+
+if [ -z "${DOTFILES_REPO:-}" ]; then
+    script=$(readlink -f "$0")
+    DOTFILES_REPO=$(cd -- "$(dirname -- "$script")/../../../.." && pwd -P)
+fi
+machine=${DOTFILES_MACHINE:-}
+if [ -z "$machine" ]; then
+    state=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/machine
+    [ -r "$state" ] && IFS= read -r machine <"$state"
+fi
+[ -n "$machine" ] || { echo 'HDR is not configured; run ./deploy --machine NAME' >&2; exit 1; }
+config=$DOTFILES_REPO/machines/$machine.conf
+[ -r "$config" ] || { echo "Missing machine configuration: $config" >&2; exit 1; }
+OUT=
+while IFS= read -r line || [ -n "$line" ]; do
+    case $line in
+        hdr_output=*) OUT=${line#*=} ;;
+    esac
+done <"$config"
+[ -n "$OUT" ] || { echo "Missing hdr_output in $config" >&2; exit 1; }
+
+outputs=$(kscreen-doctor -o 2>/dev/null) || { echo 'Unable to read KScreen outputs' >&2; exit 1; }
+printf '%s\n' "$outputs" | awk -v out="$OUT" '$1 == "Output:" && $3 == out { found=1 } END { exit !found }' || {
+    echo "Configured HDR output not found: $OUT" >&2
+    exit 1
+}
 state() {
-  kscreen-doctor -o 2>/dev/null | sed -e 's/\x1b\[[0-9;]*m//g' | awk -v out="$OUT" '
-    /^Output:/ { found = ($0 ~ out); next }
-    found && /HDR: enabled/ { print "enabled"; exit }
-    found && /HDR: disabled/ { print "disabled"; exit }
-  '
+    printf '%s\n' "$outputs" | awk -v out="$OUT" '
+        $1 == "Output:" { found = ($3 == out); next }
+        found && /HDR: enabled/ { print "enabled"; exit }
+        found && /HDR: disabled/ { print "disabled"; exit }
+    '
 }
 enable() { exec kscreen-doctor "output.$OUT.hdr.enable" "output.$OUT.wcg.enable"; }
 disable() { exec kscreen-doctor "output.$OUT.hdr.disable" "output.$OUT.wcg.disable"; }
-case "$1" in
-  on) enable ;;
-  off) disable ;;
-  status) state ;;
-  ""|toggle)
-    if [ "$(state)" = "enabled" ]; then disable; else enable; fi ;;
-  *) echo "usage: hdr [on|off|toggle|status]" >&2; exit 2 ;;
+case ${1-} in
+    on) enable ;;
+    off) disable ;;
+    status) state ;;
+    ''|toggle) if [ "$(state)" = enabled ]; then disable; else enable; fi ;;
+    *) echo 'usage: hdr [on|off|toggle|status]' >&2; exit 2 ;;
 esac

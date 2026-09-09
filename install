@@ -1,9 +1,4 @@
 #!/usr/bin/bash
-# Restore packages for this OS, then deploy dotfiles.
 set -euo pipefail
-
-repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
-readonly repo
-
-"$repo/packages/install"
-exec "$repo/bootstrap" "$@"
+repo=${DOTFILES_REPO:-$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)}
+exec "$repo/packages/install" "$@"

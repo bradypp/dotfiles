@@ -1,0 +1,74 @@
+#!/usr/bin/bash
+# Confirm the one HDR output and one drive needed by Vorta.
+set -euo pipefail
+
+(($# == 1)) || { printf '%s\n' 'Usage: setup/hardware MACHINE_CONFIG' >&2; exit 2; }
+config=$1
+[[ -f $config ]] || { printf 'Missing machine configuration: %s\n' "$config" >&2; exit 1; }
+
+hdr_output=
+vorta_drive_uuid=
+vorta_mount_point=
+declare -A seen=()
+read_config() {
+    local line key value
+    hdr_output= vorta_drive_uuid= vorta_mount_point=
+    seen=()
+    while IFS= read -r line || [[ -n $line ]]; do
+        [[ -z $line || $line == \#* ]] && continue
+        [[ $line == *=* ]] || { printf 'Invalid machine line: %s\n' "$line" >&2; return 1; }
+        key=${line%%=*}
+        value=${line#*=}
+        case $key in
+            hdr_output|vorta_drive_uuid|vorta_mount_point) ;;
+            *) printf 'Unknown machine key: %s\n' "$key" >&2; return 1 ;;
+        esac
+        [[ ! ${seen[$key]+set} ]] || { printf 'Duplicate machine key: %s\n' "$key" >&2; return 1; }
+        seen[$key]=1
+        printf -v "$key" '%s' "$value"
+    done <"$config"
+}
+
+validate() {
+    [[ -n $hdr_output && $hdr_output != *[[:space:]]* ]] || { printf '%s\n' 'Invalid or missing hdr_output' >&2; return 1; }
+    [[ -n $vorta_drive_uuid && $vorta_drive_uuid != /dev/* && $vorta_drive_uuid != *[[:space:]]* ]] || {
+        printf '%s\n' 'Invalid or missing vorta_drive_uuid; use a filesystem UUID' >&2; return 1
+    }
+    [[ $vorta_mount_point == /* ]] || { printf '%s\n' 'vorta_mount_point must be absolute' >&2; return 1; }
+}
+
+read_config
+interactive=${DOTFILES_INTERACTIVE:-}
+[[ -n $interactive ]] || { [[ -t 0 ]] && interactive=1 || interactive=0; }
+if [[ $interactive == 1 ]]; then
+    command -v kscreen-doctor >/dev/null && kscreen-doctor -o || true
+    lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS
+    printf 'Change the saved monitor or Vorta drive? [y/N] '
+    read -r answer
+    if [[ $answer == [yY] || $answer == [yY][eE][sS] ]]; then
+        read -r -p "HDR output [$hdr_output]: " new_hdr
+        read -r -p "Vorta drive UUID [$vorta_drive_uuid]: " new_uuid
+        read -r -p "Vorta mount point [$vorta_mount_point]: " new_mount
+        hdr_output=${new_hdr:-$hdr_output}
+        vorta_drive_uuid=${new_uuid:-$vorta_drive_uuid}
+        vorta_mount_point=${new_mount:-$vorta_mount_point}
+        validate
+        printf 'Save these values? [y/N] '
+        read -r answer
+        [[ $answer == [yY] || $answer == [yY][eE][sS] ]] || { printf '%s\n' 'Hardware setup skipped.'; exit 0; }
+        tmp=$(mktemp "${config}.tmp.XXXXXX")
+        trap 'rm -f -- "${tmp:-}"' EXIT
+        printf 'hdr_output=%s\nvorta_drive_uuid=%s\nvorta_mount_point=%s\n' \
+            "$hdr_output" "$vorta_drive_uuid" "$vorta_mount_point" >"$tmp"
+        mv -- "$tmp" "$config"
+        trap - EXIT
+    fi
+fi
+validate
+
+kscreen=$(kscreen-doctor -o 2>/dev/null || true)
+[[ $kscreen == *"$hdr_output"* ]] || { printf 'Configured HDR output not found: %s\n' "$hdr_output" >&2; exit 1; }
+blocks=$(lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS)
+[[ $blocks == *"$vorta_drive_uuid"* ]] || { printf 'Configured Vorta drive not found: %s\n' "$vorta_drive_uuid" >&2; exit 1; }
+printf 'HDR output: %s\n' "$hdr_output"
+printf 'Vorta drive: %s at %s\n' "$vorta_drive_uuid" "$vorta_mount_point"
