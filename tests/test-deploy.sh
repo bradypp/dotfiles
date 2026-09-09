@@ -64,6 +64,26 @@ fi
 assert_eq "$(<"$home/.base")" unmanaged
 pass 'deploy refuses unmanaged conflicts'
 
+if HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+   DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
+       "$repo/deploy" --machine none --adopt >/dev/null 2>"$tmp/adopt-error"; then
+    :
+else
+    fail 'explicit adoption was rejected'
+fi
+assert_eq "$(<"$fixture/stow/base/.base")" unmanaged
+assert_link_to "$home/.base" "$fixture/stow/base/.base"
+pass 'deploy adopts unmanaged conflicts when explicitly requested'
+
+if HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+   DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
+       "$repo/deploy" --machine none --adopt --help >/dev/null; then
+    :
+else
+    fail 'deploy did not accept --adopt with wrapper-compatible arguments'
+fi
+pass 'deploy accepts explicit adoption'
+
 wrapper=$repo/stow/base/.local/bin/dotfiles-deploy
 [[ -x $wrapper ]] || fail 'dotfiles-deploy entry point is missing'
 remote_home="$tmp/remote-home"
@@ -71,8 +91,8 @@ mkdir -p "$remote_home"
 (
     cd /tmp
     HOME="$remote_home" XDG_STATE_HOME="$tmp/remote-state" DOTFILES_REPO="$fixture" \
-    DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
-        "$wrapper" --no-machine >/dev/null
+        "$wrapper" --no-machine --adopt >/dev/null
 )
 assert_link_to "$remote_home/.base" "$fixture/stow/base/.base"
 pass 'dotfiles-deploy runs repository deploy from any directory'
+pass 'dotfiles-deploy forwards --adopt to repository deploy'
