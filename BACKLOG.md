@@ -26,3 +26,7 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 - Extend `update` beyond package inventories only for state that is not already Stowed.
 - Test Fedora/COPR behavior on an actual Fedora installation.
 - Test clean-machine restoration in a disposable VM.
+
+## AI Ran Setup
+
+- Add setup instructions for an ai agent to automatically handle the setup of things that can't be handled by a script or needs verification before install

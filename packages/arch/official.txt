@@ -164,6 +164,7 @@ spectacle
 stow
 sudo
 sysfsutils
+tailscale
 tesseract-data-eng
 texinfo
 tmux
