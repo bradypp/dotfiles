@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Restore packages for the detected distribution via packages/install.
 set -euo pipefail
 repo=${DOTFILES_REPO:-$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)}
 exec "$repo/packages/install" "$@"

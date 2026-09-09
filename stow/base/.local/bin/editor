@@ -1,4 +1,5 @@
 #!/bin/sh
+# Open paths with the desktop's default text editor.
 
 editor_id=$(/usr/bin/xdg-mime query default text/plain) || {
   printf '%s\n' 'Error: unable to query the default text editor.' >&2

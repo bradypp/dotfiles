@@ -1,4 +1,5 @@
 #!/bin/sh
+# Run the AI agent selected by set-agent, forwarding all arguments.
 
 config="$HOME/.config/default-ai-agent"
 

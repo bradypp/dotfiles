@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+# Restow base plus the detected desktop; make new Stow commands executable.
+# Usage: ./deploy [--machine NAME|--no-machine]
 set -euo pipefail
 
 script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
@@ -28,6 +30,15 @@ while (($#)); do
 done
 
 dotfiles_resolve_context "$machine"
+
+# Make newly added Stow commands runnable before linking them.
+for package in "${DOTFILES_STOW_PACKAGES[@]}"; do
+    while IFS= read -r -d '' candidate; do
+        first_line=
+        IFS= read -r first_line <"$candidate" || true
+        [[ $first_line == '#!'* ]] && chmod u+x "$candidate"
+    done < <(find "$DOTFILES_REPO/stow/$package" -type f -print0)
+done
 
 selected() {
     local wanted

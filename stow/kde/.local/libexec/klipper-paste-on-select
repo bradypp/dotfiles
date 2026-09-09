@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Paste after selecting a non-current Klipper history entry on KDE Wayland.
 set -u
 
 is_klipper_popup() {

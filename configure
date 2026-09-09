@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+# Run setup scripts for the detected session/desktop and selected machine.
+# Usage: ./configure [--machine NAME|--no-machine]
 set -euo pipefail
 script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
 source "$script_repo/lib/dotfiles.sh"

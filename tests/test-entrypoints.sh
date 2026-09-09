@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Verify each root entry point delegates only its intended lifecycle stage.
 set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/testlib.sh"
 repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)

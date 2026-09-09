@@ -1,4 +1,5 @@
 #!/bin/sh
+# Open herdr in the current terminal or launch it through xdg-terminal-exec.
 
 if [ -t 0 ] && [ -t 1 ]; then
   # Already running inside a terminal: reuse it.

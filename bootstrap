@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+# Provision packages, deploy links, configure components, and verify the result.
+# Usage: ./bootstrap [--skip-install] [--machine NAME|--no-machine]
 set -euo pipefail
 repo=${DOTFILES_COMMAND_ROOT:-$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)}
 skip_install=false

@@ -1,4 +1,5 @@
 #!/bin/sh
+# Save the default AI agent used by the agent wrapper.
 
 case "$1" in
   codex|hermes|claude|opencode|gemini|grok|copilot|omp|crush|pi)

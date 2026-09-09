@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Run every repository regression test.
 set -euo pipefail
 repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)
 for test_file in "$repo"/tests/test-*.sh; do

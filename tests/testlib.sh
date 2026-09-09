@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Shared assertions used by the shell regression tests.
 set -euo pipefail
 
 fail() { printf 'not ok - %s\n' "$*" >&2; exit 1; }

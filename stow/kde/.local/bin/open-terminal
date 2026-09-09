@@ -1,2 +1,3 @@
 #!/bin/sh
+# Open the system-selected terminal without overriding the desktop default.
 exec xdg-terminal-exec "$@"

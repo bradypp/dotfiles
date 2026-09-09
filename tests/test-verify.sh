@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Verify read-only checks reject incorrect mounts and inactive package links.
 set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/testlib.sh"
 repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)

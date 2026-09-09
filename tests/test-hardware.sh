@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Verify machine config validation and safe HDR output selection.
 set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/testlib.sh"
 repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)
