@@ -17,7 +17,7 @@ printf 'hdr_output=HDMI-A-1\n' >"$fixture/machines/home-pc.conf"
 
 HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
 DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
-    "$repo/deploy" --machine none
+    "$repo/deploy"
 assert_link_to "$home/.base" "$fixture/stow/base/.base"
 assert_link_to "$home/.kde" "$fixture/stow/kde/.kde"
 [[ -x $fixture/stow/base/.local/bin/new-command ]] || fail 'shebang script was not made executable'
@@ -88,11 +88,13 @@ wrapper=$repo/stow/base/.local/bin/dotfiles-deploy
 [[ -x $wrapper ]] || fail 'dotfiles-deploy entry point is missing'
 remote_home="$tmp/remote-home"
 mkdir -p "$remote_home"
+printf wrapper-unmanaged >"$remote_home/.base"
 (
     cd /tmp
     HOME="$remote_home" XDG_STATE_HOME="$tmp/remote-state" DOTFILES_REPO="$fixture" \
         "$wrapper" --no-machine --adopt >/dev/null
 )
+assert_eq "$(<"$fixture/stow/base/.base")" wrapper-unmanaged
 assert_link_to "$remote_home/.base" "$fixture/stow/base/.base"
 pass 'dotfiles-deploy runs repository deploy from any directory'
 pass 'dotfiles-deploy forwards --adopt to repository deploy'

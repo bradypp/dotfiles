@@ -26,7 +26,7 @@ Run the root scripts from `~/repos/dotfiles`:
 |---|---|
 | `./bootstrap [--skip-install] [--machine NAME\|--no-machine]` | Run install, deploy, configure, and verify in order. |
 | `./install` | Restore packages for the detected distribution. |
-| `./deploy [--adopt] [--machine NAME|--no-machine]` | Restow base and the detected desktop package; adopt conflicts only when requested. |
+| `./deploy [--adopt] [--machine NAME\|--no-machine]` | Restow base and the detected desktop package; adopt conflicts only when requested. |
 | `./configure [--machine NAME\|--no-machine]` | Run setup for the detected session, desktop, and selected machine. |
 | `./update` | Refresh package inventories from the current system. |
 | `./verify` | Check repository-managed state without changing it. |
