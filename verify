@@ -1,79 +1,74 @@
 #!/usr/bin/bash
-# Verify the saved Stow composition without changing the system.
+# Read-only verification for state managed by this repository.
 set -euo pipefail
 
-repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
-readonly repo
-readonly state_file="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/profiles"
-profiles=()
-packages=(base)
-count=0
+script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
+source "$script_repo/lib/dotfiles.sh"
+dotfiles_resolve_context ''
 
-append_unique() {
-    local -n values=$1
-    local candidate=$2 existing
-    for existing in "${values[@]}"; do
-        [[ $existing == "$candidate" ]] && return 0
-    done
-    values+=("$candidate")
-}
+context=base
+if dotfiles_is_kde; then context=kde; fi
+printf 'context: %s / %s\n' "$context" "${DOTFILES_MACHINE:-none}"
 
-if [[ -r $state_file ]]; then
-    while read -r profile; do
-        [[ -n $profile ]] && append_unique profiles "$profile"
-    done < "$state_file"
-fi
+stow --simulate --restow --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" \
+    "${DOTFILES_STOW_PACKAGES[@]}" >/dev/null
 
-for profile in "${profiles[@]}"; do
-    profile_file=$repo/profiles/$profile
-    [[ -r $profile_file ]] || {
-        printf 'Saved profile no longer exists: %s\n' "$profile" >&2
-        exit 1
-    }
-    while read -r kind value extra; do
-        [[ -n $kind && ${kind:0:1} != '#' ]] || continue
-        [[ -z ${extra:-} && -n ${value:-} ]] || {
-            printf 'Invalid profile entry in %s.\n' "$profile_file" >&2
-            exit 1
-        }
-        case $kind in
-            stow) append_unique packages "$value" ;;
-            setup) ;;
-            *)
-                printf 'Unknown profile action in %s: %s\n' "$profile_file" "$kind" >&2
-                exit 1
-                ;;
-        esac
-    done < "$profile_file"
-done
-
-if ! command -v stow >/dev/null 2>&1; then
-    printf 'GNU Stow is required.\n' >&2
-    exit 1
-fi
-
-stow --simulate --restow --no-folding --dir="$repo/stow" --target="$HOME" "${packages[@]}"
-
-for package in "${packages[@]}"; do
-    package_dir=$repo/stow/$package
-    [[ -d $package_dir ]] || {
-        printf 'Missing Stow package: %s\n' "$package" >&2
-        exit 1
-    }
+links=0
+for package in "${DOTFILES_STOW_PACKAGES[@]}"; do
+    package_root=$DOTFILES_REPO/stow/$package
+    [[ -d $package_root ]] || { printf 'Missing Stow package: %s\n' "$package" >&2; exit 1; }
     while IFS= read -r -d '' source; do
-        relative=${source#"$package_dir/"}
+        relative=${source#"$package_root"/}
         target=$HOME/$relative
-        if [[ ! -L $target || $(readlink -f -- "$target") != $(readlink -f -- "$source") ]]; then
-            printf 'Incorrect or missing link: %s\n' "$target" >&2
-            exit 1
-        fi
-        ((++count))
-    done < <(find "$package_dir" \( -type f -o -type l \) -print0)
+        [[ -L $target ]] || { printf 'Incorrect or missing link: %s\n' "$target" >&2; exit 1; }
+        [[ $(readlink -f -- "$target") == $(readlink -f -- "$source") ]] || {
+            printf 'Incorrect link target: %s\n' "$target" >&2; exit 1
+        }
+        ((links += 1))
+    done < <(find "$package_root" \( -type f -o -type l \) -print0)
 done
+printf 'stow: %d links verified (%s)\n' "$links" "${DOTFILES_STOW_PACKAGES[*]}"
 
-unit=$HOME/.config/systemd/user/klipper-paste-on-select.service
-if [[ -L $unit ]] && command -v systemd-analyze >/dev/null 2>&1; then
-    systemd-analyze --user verify "$unit"
+if dotfiles_is_kde; then
+    resolved=$(xdg-terminal-exec --print-id)
+    [[ -n $resolved ]] || { printf '%s\n' 'xdg-terminal-exec returned no terminal ID' >&2; exit 1; }
+    xdg-terminal-exec --print-path >/dev/null
+    xdg-terminal-exec --print-cmd >/dev/null
+    printf 'terminal: %s\n' "$resolved"
+
+    unit=${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/klipper-paste-on-select.service
+    if [[ -e $unit ]]; then
+        systemd-analyze --user verify "$unit" >/dev/null
+        systemctl --user is-enabled --quiet klipper-paste-on-select.service
+        systemctl --user is-active --quiet klipper-paste-on-select.service
+        systemctl --user is-active --quiet ydotool.service
+        printf '%s\n' 'services: ydotool and klipper active'
+    fi
 fi
 
-printf 'Verified %d links from: %s\n' "$count" "${packages[*]}"
+if [[ -n $DOTFILES_MACHINE_CONFIG ]]; then
+    hdr_output= vorta_drive_uuid= vorta_mount_point=
+    while IFS= read -r line || [[ -n $line ]]; do
+        [[ -z $line || $line == \#* ]] && continue
+        key=${line%%=*}; value=${line#*=}
+        case $key in
+            hdr_output|vorta_drive_uuid|vorta_mount_point) printf -v "$key" '%s' "$value" ;;
+            *) printf 'Unknown machine key: %s\n' "$key" >&2; exit 1 ;;
+        esac
+    done <"$DOTFILES_MACHINE_CONFIG"
+    [[ -n $hdr_output && -n $vorta_drive_uuid && $vorta_mount_point == /* ]] || {
+        printf 'Incomplete machine configuration: %s\n' "$DOTFILES_MACHINE_CONFIG" >&2; exit 1
+    }
+    outputs=$(kscreen-doctor -o 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g')
+    printf '%s\n' "$outputs" | awk -v out="$hdr_output" '$1 == "Output:" && $3 == out { found=1 } END { exit !found }' || {
+        printf 'Configured HDR output not found: %s\n' "$hdr_output" >&2; exit 1
+    }
+    blocks=$(lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS)
+    [[ $blocks == *"$vorta_drive_uuid"* ]] || { printf 'Configured Vorta drive not found: %s\n' "$vorta_drive_uuid" >&2; exit 1; }
+    [[ $blocks == *"$vorta_mount_point"* ]] || { printf 'Vorta drive is not mounted at %s\n' "$vorta_mount_point" >&2; exit 1; }
+    command -v vorta >/dev/null || { printf '%s\n' 'Vorta is not installed' >&2; exit 1; }
+    command -v borg >/dev/null || { printf '%s\n' 'Borg is not installed' >&2; exit 1; }
+    printf '%s\n' 'hardware: HDR output present; Vorta drive mounted'
+fi
+
+printf '%s\n' 'result: PASS'

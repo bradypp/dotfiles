@@ -32,7 +32,7 @@ pass 'machine configuration rejects device paths and relative mounts'
 
 mkdir -p "$tmp/hdr-repo/machines"
 printf 'hdr_output=HDMI-A-1\nvorta_drive_uuid=1C54FDAF54FD8C30\nvorta_mount_point=/run/media/paul/Local Disk\n' >"$tmp/hdr-repo/machines/home-pc.conf"
-printf '#!/usr/bin/bash\nif [[ $1 == -o ]]; then printf "Output: 1 HDMI-A-1 id\\n\\tHDR: disabled\\n\\tWide Color Gamut: disabled\\n"; else printf "%%s\\n" "$*" >>"$HDR_LOG"; fi\n' >"$bin/kscreen-doctor"
+printf '#!/usr/bin/bash\nif [[ $1 == -o ]]; then printf "\\033[01;32mOutput: \\033[0;0m1 HDMI-A-1 id\\n\\tHDR: disabled\\n\\tWide Color Gamut: disabled\\n"; else printf "%%s\\n" "$*" >>"$HDR_LOG"; fi\n' >"$bin/kscreen-doctor"
 chmod +x "$bin/kscreen-doctor"
 : >"$tmp/hdr-log"
 status=$(HOME="$tmp/home" PATH="$bin:$PATH" DOTFILES_REPO="$tmp/hdr-repo" DOTFILES_MACHINE=home-pc HDR_LOG="$tmp/hdr-log" "$repo/stow/kde/.local/bin/hdr" status)
