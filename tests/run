@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+set -euo pipefail
+repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)
+for test_file in "$repo"/tests/test-*.sh; do
+    "$test_file"
+done
