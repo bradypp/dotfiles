@@ -1,0 +1,28 @@
+[tools]
+claude = "latest"
+codex = "latest"
+copilot = "latest"
+gh = "latest"
+oh-my-pi = "latest"
+herdr = "latest"
+node = "latest"
+python = "latest"
+grok = "latest"
+opencode = "latest"
+pi = "latest"
+pnpm = "latest"
+uv = "latest"
+
+[settings]
+registry_floating = false
+minimum_release_age = "24h"
+minimum_release_age_excludes = [
+  "pi",
+  "oh-my-pi",
+  "claude",
+  "codex",
+  "copilot",
+  "grok",
+  "opencode",
+  "herdr",
+]

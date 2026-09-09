@@ -1,0 +1,38 @@
+confirm-close-surface = false
+
+font-family = "JetBrainsMono Nerd Font"
+font-family = "monospace"
+font-size = 12
+
+# --- Themes (pick one, keep the rest commented) ---
+theme = "TokyoNight Night"
+# theme = "TokyoNight Storm"
+# theme = "TokyoNight Moon"
+# theme = "TokyoNight Day"
+# theme = "Catppuccin Mocha"
+# theme = "Dracula"
+# theme = "Dracula+"
+# theme = "Nord"
+# theme = "Gruvbox Dark"
+# theme = "Everforest Dark Hard"
+# theme = "Kanagawa Wave"
+# theme = "Rose Pine Moon"
+# theme = "Breeze"
+# theme = "Adwaita Dark"
+
+# background-opacity = 0.98
+background-blur-radius = 25
+
+cursor-style = "block"
+cursor-style-blink = false
+shell-integration-features = "sudo,title,no-cursor,ssh-env"
+
+scrollback-limit = 10000
+copy-on-select = clipboard
+window-padding-x = 8
+window-padding-y = 8
+
+keybind = ctrl+shift+c=copy_to_clipboard
+keybind = ctrl+shift+v=paste_from_clipboard
+keybind = ctrl+shift+t=new_tab
+keybind = ctrl+shift+w=close_surface

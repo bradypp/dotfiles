@@ -52,6 +52,7 @@ fwupd
 ghostty
 git
 glances
+go
 gst-libav
 gst-plugin-pipewire
 gst-plugins-bad

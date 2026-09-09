@@ -55,6 +55,7 @@ for package_dir in "$DOTFILES_REPO"/stow/*; do
     stow --delete --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" "$package"
 done
 
+# Add --adopt here if you need to overwrite existing files in the target directory.
 stow --restow --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" \
     "${DOTFILES_STOW_PACKAGES[@]}"
 

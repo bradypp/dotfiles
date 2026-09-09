@@ -30,3 +30,10 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 ## AI Ran Setup
 
 - Add setup instructions for an ai agent to automatically handle the setup of things that can't be handled by a script or needs verification before install
+
+## Other
+
+- How to handle appimages and curl installs? Are some automatic? (hermes webui, herdr collie, oh-my-zsh, atuin)
+- Add different stow categories for de's like hyprland and distros like arch/cachy/fedora (some config is tied to one of these like shelly)
+- Add an --adopt flag to deploy & dotfiles-deploy
+- Double check all current links, will they break? Do we need to link anything else?
