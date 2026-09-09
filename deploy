@@ -1,0 +1,60 @@
+#!/usr/bin/bash
+set -euo pipefail
+
+script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
+source "$script_repo/lib/dotfiles.sh"
+
+machine=''
+while (($#)); do
+    case $1 in
+        --machine)
+            (($# >= 2)) || { printf '%s\n' 'deploy: --machine needs a name' >&2; exit 2; }
+            machine=$2
+            shift 2
+            ;;
+        --no-machine)
+            machine=none
+            shift
+            ;;
+        -h|--help)
+            printf '%s\n' 'Usage: ./deploy [--machine NAME|--no-machine]'
+            exit 0
+            ;;
+        *)
+            printf 'deploy: unknown argument: %s\n' "$1" >&2
+            exit 2
+            ;;
+    esac
+done
+
+dotfiles_resolve_context "$machine"
+
+selected() {
+    local wanted
+    for wanted in "${DOTFILES_STOW_PACKAGES[@]}"; do
+        [[ $wanted == "$1" ]] && return 0
+    done
+    return 1
+}
+
+for package_dir in "$DOTFILES_REPO"/stow/*; do
+    [[ -d $package_dir ]] || continue
+    package=${package_dir##*/}
+    selected "$package" && continue
+    stow --delete --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" "$package"
+done
+
+stow --restow --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" \
+    "${DOTFILES_STOW_PACKAGES[@]}"
+
+mkdir -p "$DOTFILES_STATE_HOME"
+if [[ -n $DOTFILES_MACHINE ]]; then
+    printf '%s\n' "$DOTFILES_MACHINE" >"$DOTFILES_STATE_HOME/machine.tmp"
+    mv -f "$DOTFILES_STATE_HOME/machine.tmp" "$DOTFILES_STATE_HOME/machine"
+else
+    rm -f "$DOTFILES_STATE_HOME/machine"
+fi
+
+printf 'Deployed: %s' "${DOTFILES_STOW_PACKAGES[*]}"
+[[ -n $DOTFILES_MACHINE ]] && printf ' (machine: %s)' "$DOTFILES_MACHINE"
+printf '\n'
