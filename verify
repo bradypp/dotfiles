@@ -14,6 +14,13 @@ stow --simulate --restow --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOM
     "${DOTFILES_STOW_PACKAGES[@]}" >/dev/null
 
 links=0
+active_package() {
+    local active
+    for active in "${DOTFILES_STOW_PACKAGES[@]}"; do
+        [[ $active == "$1" ]] && return 0
+    done
+    return 1
+}
 for package in "${DOTFILES_STOW_PACKAGES[@]}"; do
     package_root=$DOTFILES_REPO/stow/$package
     [[ -d $package_root ]] || { printf 'Missing Stow package: %s\n' "$package" >&2; exit 1; }
@@ -25,6 +32,19 @@ for package in "${DOTFILES_STOW_PACKAGES[@]}"; do
             printf 'Incorrect link target: %s\n' "$target" >&2; exit 1
         }
         ((links += 1))
+    done < <(find "$package_root" \( -type f -o -type l \) -print0)
+done
+for package_root in "$DOTFILES_REPO"/stow/*; do
+    [[ -d $package_root ]] || continue
+    package=${package_root##*/}
+    active_package "$package" && continue
+    while IFS= read -r -d '' source; do
+        relative=${source#"$package_root"/}
+        target=$HOME/$relative
+        if [[ -L $target ]] && [[ $(readlink -f -- "$target") == $(readlink -f -- "$source") ]]; then
+            printf 'Inactive Stow package remains linked: %s (%s)\n' "$package" "$target" >&2
+            exit 1
+        fi
     done < <(find "$package_root" \( -type f -o -type l \) -print0)
 done
 printf 'stow: %d links verified (%s)\n' "$links" "${DOTFILES_STOW_PACKAGES[*]}"
@@ -63,9 +83,10 @@ if [[ -n $DOTFILES_MACHINE_CONFIG ]]; then
     printf '%s\n' "$outputs" | awk -v out="$hdr_output" '$1 == "Output:" && $3 == out { found=1 } END { exit !found }' || {
         printf 'Configured HDR output not found: %s\n' "$hdr_output" >&2; exit 1
     }
-    blocks=$(lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS)
-    [[ $blocks == *"$vorta_drive_uuid"* ]] || { printf 'Configured Vorta drive not found: %s\n' "$vorta_drive_uuid" >&2; exit 1; }
-    [[ $blocks == *"$vorta_mount_point"* ]] || { printf 'Vorta drive is not mounted at %s\n' "$vorta_mount_point" >&2; exit 1; }
+    findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --target "$vorta_mount_point" >/dev/null || {
+        printf 'Vorta drive %s is not mounted at %s\n' "$vorta_drive_uuid" "$vorta_mount_point" >&2
+        exit 1
+    }
     command -v vorta >/dev/null || { printf '%s\n' 'Vorta is not installed' >&2; exit 1; }
     command -v borg >/dev/null || { printf '%s\n' 'Borg is not installed' >&2; exit 1; }
     printf '%s\n' 'hardware: HDR output present; Vorta drive mounted'

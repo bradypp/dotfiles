@@ -6,8 +6,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 bin="$tmp/bin"
 mkdir -p "$bin"
-printf '#!/usr/bin/bash\nprintf "Output: HDMI-A-1 enabled connected HDR: enabled\\n"\n' >"$bin/kscreen-doctor"
+printf '#!/usr/bin/bash\nprintf "Output: 1 HDMI-A-1 id\\n\\tHDR: enabled\\n"\n' >"$bin/kscreen-doctor"
 printf '#!/usr/bin/bash\nprintf "NAME UUID MOUNTPOINTS\\nsdb1 TEST-UUID /mnt/vorta\\n"\n' >"$bin/lsblk"
+printf '#!/usr/bin/bash\n[[ ${FINDMNT_OK:-1} == 1 ]]\n' >"$bin/findmnt"
 chmod +x "$bin"/*
 
 config="$tmp/home-pc.conf"
@@ -16,6 +17,20 @@ PATH="$bin:$PATH" DOTFILES_INTERACTIVE=0 "$repo/setup/hardware" "$config" >"$tmp
 assert_contains "$(<"$tmp/out")" 'HDR output: HDMI-A-1'
 assert_contains "$(<"$tmp/out")" 'Vorta drive: TEST-UUID at /mnt/vorta'
 pass 'hardware setup validates the narrow machine configuration'
+
+printf '#!/usr/bin/bash\nprintf "Output: 1 DP-10 id\\n\\tHDR: enabled\\n"\n' >"$bin/kscreen-doctor"
+printf 'hdr_output=DP-1\nvorta_drive_uuid=TEST-UUID\nvorta_mount_point=/mnt/vorta\n' >"$config"
+if PATH="$bin:$PATH" FINDMNT_OK=1 DOTFILES_INTERACTIVE=0 "$repo/setup/hardware" "$config" 2>"$tmp/error"; then
+    fail 'substring display match was accepted'
+fi
+pass 'hardware setup requires an exact KScreen output name'
+
+printf '#!/usr/bin/bash\nprintf "Output: 1 HDMI-A-1 id\\n\\tHDR: enabled\\n"\n' >"$bin/kscreen-doctor"
+printf 'hdr_output=HDMI-A-1\nvorta_drive_uuid=TEST-UUID\nvorta_mount_point=/mnt/vorta\n' >"$config"
+if PATH="$bin:$PATH" FINDMNT_OK=0 DOTFILES_INTERACTIVE=0 "$repo/setup/hardware" "$config" 2>"$tmp/error"; then
+    fail 'drive mounted at a different path was accepted'
+fi
+pass 'hardware setup requires UUID and mount point on the same mount'
 
 printf 'unknown=value\n' >"$config"
 if PATH="$bin:$PATH" DOTFILES_INTERACTIVE=0 "$repo/setup/hardware" "$config" 2>"$tmp/error"; then
