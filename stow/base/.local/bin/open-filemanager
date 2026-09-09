@@ -1,0 +1,32 @@
+#!/bin/sh
+# Open the default file manager in a new window, preserving the xdg default.
+# Usage: open-filemanager [directory]  (defaults to $HOME)
+# Point your KDE shortcut at this script instead of: xdg-open "$HOME"
+
+dir="${1:-$HOME}"
+
+id=$(/usr/bin/xdg-mime query default inode/directory) || {
+  printf '%s\n' 'Error: unable to query the default file manager.' >&2
+  exit 1
+}
+
+case "$id" in
+  org.kde.dolphin.desktop)
+    exec /usr/bin/dolphin --new-window "$dir"
+    ;;
+  org.gnome.Nautilus.desktop|nautilus.desktop)
+    exec /usr/bin/nautilus --new-window "$dir"
+    ;;
+  "")
+    printf '%s\n' 'Error: no default file manager is configured.' >&2
+    exit 1
+    ;;
+  *)
+    # Unknown manager: preserve default via gtk-launch, else xdg-open.
+    if command -v /usr/bin/gtk-launch >/dev/null 2>&1; then
+      exec /usr/bin/gtk-launch "$id" "$dir"
+    else
+      exec /usr/bin/xdg-open "$dir"
+    fi
+    ;;
+esac

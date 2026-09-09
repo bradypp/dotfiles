@@ -1,0 +1,4 @@
+# KDE desktop composition.
+stow kde
+setup copyq
+setup klipper

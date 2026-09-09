@@ -1,0 +1,79 @@
+#!/usr/bin/bash
+# Verify the saved Stow composition without changing the system.
+set -euo pipefail
+
+repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
+readonly repo
+readonly state_file="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/profiles"
+profiles=()
+packages=(base)
+count=0
+
+append_unique() {
+    local -n values=$1
+    local candidate=$2 existing
+    for existing in "${values[@]}"; do
+        [[ $existing == "$candidate" ]] && return 0
+    done
+    values+=("$candidate")
+}
+
+if [[ -r $state_file ]]; then
+    while read -r profile; do
+        [[ -n $profile ]] && append_unique profiles "$profile"
+    done < "$state_file"
+fi
+
+for profile in "${profiles[@]}"; do
+    profile_file=$repo/profiles/$profile
+    [[ -r $profile_file ]] || {
+        printf 'Saved profile no longer exists: %s\n' "$profile" >&2
+        exit 1
+    }
+    while read -r kind value extra; do
+        [[ -n $kind && ${kind:0:1} != '#' ]] || continue
+        [[ -z ${extra:-} && -n ${value:-} ]] || {
+            printf 'Invalid profile entry in %s.\n' "$profile_file" >&2
+            exit 1
+        }
+        case $kind in
+            stow) append_unique packages "$value" ;;
+            setup) ;;
+            *)
+                printf 'Unknown profile action in %s: %s\n' "$profile_file" "$kind" >&2
+                exit 1
+                ;;
+        esac
+    done < "$profile_file"
+done
+
+if ! command -v stow >/dev/null 2>&1; then
+    printf 'GNU Stow is required.\n' >&2
+    exit 1
+fi
+
+stow --simulate --restow --no-folding --dir="$repo/stow" --target="$HOME" "${packages[@]}"
+
+for package in "${packages[@]}"; do
+    package_dir=$repo/stow/$package
+    [[ -d $package_dir ]] || {
+        printf 'Missing Stow package: %s\n' "$package" >&2
+        exit 1
+    }
+    while IFS= read -r -d '' source; do
+        relative=${source#"$package_dir/"}
+        target=$HOME/$relative
+        if [[ ! -L $target || $(readlink -f -- "$target") != $(readlink -f -- "$source") ]]; then
+            printf 'Incorrect or missing link: %s\n' "$target" >&2
+            exit 1
+        fi
+        ((++count))
+    done < <(find "$package_dir" \( -type f -o -type l \) -print0)
+done
+
+unit=$HOME/.config/systemd/user/klipper-paste-on-select.service
+if [[ -L $unit ]] && command -v systemd-analyze >/dev/null 2>&1; then
+    systemd-analyze --user verify "$unit"
+fi
+
+printf 'Verified %d links from: %s\n' "$count" "${packages[*]}"

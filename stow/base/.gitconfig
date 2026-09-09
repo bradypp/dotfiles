@@ -1,0 +1,16 @@
+[user]
+	name = bradypp
+	email = 53856442+bradypp@users.noreply.github.com
+[core]
+	autocrlf = false
+	eol = lf
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+[init]
+	defaultBranch = main
+[credential]
+	helper = store
+[push]
+	autoSetupRemote = true

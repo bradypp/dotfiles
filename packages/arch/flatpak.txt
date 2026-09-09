@@ -1,0 +1,1 @@
+flathub	it.mijorus.gearlever

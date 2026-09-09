@@ -1,0 +1,27 @@
+#!/usr/bin/bash
+set -u
+
+is_klipper_popup() {
+    [[ "$1" == "Clipboard Popup" || "$1" == "plasmashell" ]]
+}
+
+/usr/bin/dbus-monitor "sender='org.kde.klipper',interface='org.kde.klipper.klipper'" |
+while IFS= read -r line; do
+    [[ "$line" == *clipboardHistoryUpdated* ]] || continue
+
+    window_name=$(/usr/bin/kdotool getactivewindow getwindowname 2>/dev/null) || continue
+    is_klipper_popup "$window_name" || continue
+
+    # Wait, with a timeout, for focus to leave Klipper.
+    for _ in {1..30}; do
+        /usr/bin/sleep 0.1
+        window_name=$(/usr/bin/kdotool getactivewindow getwindowname 2>/dev/null) || window_name=
+        is_klipper_popup "$window_name" || break
+    done
+
+    is_klipper_popup "$window_name" && continue
+
+    # Let the destination process the restored clipboard offer, then Paste.
+    /usr/bin/sleep 0.05
+    /usr/bin/ydotool key 42:1 110:1 110:0 42:0
+done

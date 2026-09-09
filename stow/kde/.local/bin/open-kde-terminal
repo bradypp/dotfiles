@@ -1,0 +1,8 @@
+#!/bin/sh
+# Launch the KDE default terminal (kdeglobals General/TerminalService).
+# Follows System Settings changes without hard-coding kitty/ghostty.
+svc=$(kreadconfig6 --file kdeglobals --group General --key TerminalService 2>/dev/null)
+[ -n "$svc" ] || svc="org.kde.konsole.desktop"
+# gtk-launch wants the ID without .desktop
+id=${svc%.desktop}
+exec gtk-launch "$id"

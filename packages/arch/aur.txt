@@ -1,0 +1,4 @@
+kdotool
+megasync
+visual-studio-code-bin
+xdg-terminal-exec

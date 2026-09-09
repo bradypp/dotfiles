@@ -1,0 +1,123 @@
+#!/usr/bin/bash
+# Refresh package inventories for the current distribution and Flatpak.
+set -euo pipefail
+
+repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)
+readonly repo
+readonly packages_dir="$repo/packages"
+
+if [[ ! -r /etc/os-release ]]; then
+    printf 'Cannot identify the operating system: /etc/os-release is unavailable.\n' >&2
+    exit 1
+fi
+. /etc/os-release
+
+update_pacman() {
+    command -v pacman >/dev/null 2>&1 || {
+        printf 'Pacman is required to update this package inventory.\n' >&2
+        return 1
+    }
+
+    local package sync_repo
+    local -a standard_repos=()
+    local -A arch_available=()
+    local arch_tmp cachyos_tmp aur_tmp
+
+    while read -r sync_repo; do
+        case $sync_repo in
+            core|extra|multilib) standard_repos+=("$sync_repo") ;;
+        esac
+    done < <(pacman-conf --repo-list)
+
+    while read -r _ package _; do
+        arch_available["$package"]=1
+    done < <(pacman -Sl "${standard_repos[@]}")
+
+    arch_tmp=$(mktemp)
+    cachyos_tmp=$(mktemp)
+    aur_tmp=$(mktemp)
+    trap 'rm -f "$arch_tmp" "$cachyos_tmp" "$aur_tmp"' RETURN
+
+    while read -r package; do
+        if [[ -n ${arch_available[$package]+yes} ]]; then
+            printf '%s\n' "$package" >> "$arch_tmp"
+        elif [[ ${ID:-} == cachyos ]] && pacman -Si "$package" >/dev/null 2>&1; then
+            printf '%s\n' "$package" >> "$cachyos_tmp"
+        else
+            printf '%s\n' "$package" >> "$aur_tmp"
+        fi
+    done < <(pacman -Qqe)
+
+    LC_ALL=C sort -u "$arch_tmp" > "$packages_dir/arch/official.txt"
+    LC_ALL=C sort -u "$aur_tmp" > "$packages_dir/arch/aur.txt"
+    if [[ ${ID:-} == cachyos ]]; then
+        LC_ALL=C sort -u "$cachyos_tmp" > "$packages_dir/cachyos/official.txt"
+    fi
+
+    rm -f "$arch_tmp" "$cachyos_tmp" "$aur_tmp"
+    trap - RETURN
+}
+
+update_fedora() {
+    local dnf_command package source_repo
+    local official_tmp copr_tmp
+
+    if command -v dnf5 >/dev/null 2>&1; then
+        dnf_command=dnf5
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf_command=dnf
+    else
+        printf 'DNF is required to update the Fedora package inventory.\n' >&2
+        return 1
+    fi
+
+    official_tmp=$(mktemp)
+    copr_tmp=$(mktemp)
+    trap 'rm -f "$official_tmp" "$copr_tmp"' RETURN
+
+    while IFS=$'\t' read -r package source_repo; do
+        [[ -n $package ]] || continue
+        case $source_repo in
+            *copr*) printf '%s\n' "$package" >> "$copr_tmp" ;;
+            *)      printf '%s\n' "$package" >> "$official_tmp" ;;
+        esac
+    done < <("$dnf_command" repoquery --installed --userinstalled \
+        --queryformat $'%{name}\t%{from_repo}\n')
+
+    LC_ALL=C sort -u "$official_tmp" > "$packages_dir/fedora/official.txt"
+    LC_ALL=C sort -u "$copr_tmp" > "$packages_dir/fedora/copr.txt"
+
+    rm -f "$official_tmp" "$copr_tmp"
+    trap - RETURN
+}
+
+update_flatpak() {
+    local flatpak_file=$1
+    if command -v flatpak >/dev/null 2>&1; then
+        LC_ALL=C flatpak list --app --columns=origin,application |
+            LC_ALL=C sort -u > "$flatpak_file"
+    else
+        printf 'Flatpak unavailable; leaving %s unchanged.\n' "$flatpak_file"
+    fi
+}
+
+mkdir -p "$packages_dir/arch" "$packages_dir/cachyos" "$packages_dir/fedora"
+
+flatpak_file=''
+case "${ID:-} ${ID_LIKE:-}" in
+    *cachyos*|*arch*)
+        update_pacman
+        flatpak_file=$packages_dir/arch/flatpak.txt
+        ;;
+    *fedora*)
+        update_fedora
+        flatpak_file=$packages_dir/fedora/flatpak.txt
+        ;;
+    *)
+        printf 'Package inventory is not implemented for %s.\n' "${ID:-unknown}" >&2
+        exit 1
+        ;;
+esac
+
+update_flatpak "$flatpak_file"
+printf 'Updated package inventory for %s.\n' "${ID:-unknown}"

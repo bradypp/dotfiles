@@ -1,0 +1,98 @@
+#!/usr/bin/bash
+# Configure CopyQ paste-after-selection on KDE Wayland.
+#
+# Checks for CopyQ, ydotool, kdotool, and curl; enables ydotool.service;
+# imports CopyQ's upstream Wayland Support command after verifying its pinned
+# SHA-256; and enables paste-after-selection. CopyQ's primary-selection
+# synchronization preferences are left unchanged.
+set -euo pipefail
+
+readonly WAYLAND_COMMAND_URL='https://raw.githubusercontent.com/hluk/copyq-commands/master/commands/wayland-support.ini'
+readonly WAYLAND_COMMAND_SHA256='564e1bc9878aa46c43f73b5dbdb295e009a5dd901a4a87a1526ca2642043071f'
+readonly REQUIRED_COMMANDS=(copyq ydotool kdotool curl sha256sum systemctl mktemp rm)
+
+check_commands() {
+    local command_name
+    local missing=()
+
+    for command_name in "${REQUIRED_COMMANDS[@]}"; do
+        command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
+    done
+
+    if ((${#missing[@]})); then
+        printf 'Missing commands: %s\n' "${missing[*]}" >&2
+        return 1
+    fi
+}
+
+copyq_wayland_command_exists() {
+    [[ $(/usr/bin/copyq eval 'commands().some(function(c) { return c.name == "Wayland Support"; })' 2>/dev/null) == true ]]
+}
+
+copyq_wayland_command_enabled() {
+    [[ $(/usr/bin/copyq eval 'commands().some(function(c) { return c.name == "Wayland Support" && c.enable; })' 2>/dev/null) == true ]]
+}
+
+enable_existing_wayland_command() {
+    /usr/bin/copyq eval '
+        var all = commands();
+        for (var i = 0; i < all.length; ++i) {
+            if (all[i].name == "Wayland Support") all[i].enable = true;
+        }
+        setCommands(all);
+    ' >/dev/null
+}
+
+import_wayland_command() {
+    local command_file actual_hash
+    command_file=$(/usr/bin/mktemp --suffix=.ini)
+    trap 'rm -f "${command_file:-}"' RETURN
+
+    /usr/bin/curl --fail --location --silent --show-error \
+        "$WAYLAND_COMMAND_URL" --output "$command_file"
+
+    actual_hash=$(/usr/bin/sha256sum "$command_file")
+    actual_hash=${actual_hash%% *}
+    if [[ "$actual_hash" != "$WAYLAND_COMMAND_SHA256" ]]; then
+        printf 'Downloaded CopyQ Wayland command failed its SHA-256 check.\n' >&2
+        return 1
+    fi
+
+    /usr/bin/copyq eval "
+        var f = new File('$command_file');
+        if (!f.openReadOnly()) throw 'Cannot open Wayland Support command';
+        var imported = importCommands(str(f.readAll()));
+        if (imported.length == 0) throw 'No CopyQ commands imported';
+        setCommands(commands().concat(imported));
+    " >/dev/null
+
+    /usr/bin/rm -f "$command_file"
+    trap - RETURN
+}
+
+main() {
+    check_commands
+
+    if [[ ${XDG_SESSION_TYPE:-} != wayland || ${XDG_CURRENT_DESKTOP:-} != KDE ]]; then
+        printf 'Warning: designed for KDE Wayland; detected session=%s desktop=%s\n' \
+            "${XDG_SESSION_TYPE:-unknown}" "${XDG_CURRENT_DESKTOP:-unknown}" >&2
+    fi
+
+    /usr/bin/systemctl --user enable --now ydotool.service
+    /usr/bin/copyq --start-server >/dev/null 2>&1 || true
+
+    if copyq_wayland_command_exists; then
+        enable_existing_wayland_command
+    else
+        import_wayland_command
+    fi
+
+    /usr/bin/copyq config activate_pastes true >/dev/null
+
+    copyq_wayland_command_enabled
+    [[ $(/usr/bin/copyq config activate_pastes) == true ]]
+    /usr/bin/systemctl --user is-active --quiet ydotool.service
+    printf 'CopyQ Wayland paste-on-selection: enabled\n'
+}
+
+main "$@"

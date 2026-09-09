@@ -1,0 +1,20 @@
+#!/bin/sh
+
+case "$1" in
+  codex|hermes|claude|opencode|gemini|grok|copilot|omp|crush|pi)
+    agent="$1"
+    ;;
+  *)
+    printf 'Usage: set-agent {codex|hermes|claude|opencode|gemini|grok|copilot|omp|crush|pi}\n' >&2
+    exit 1
+    ;;
+esac
+
+if ! command -v "$agent" >/dev/null 2>&1; then
+  printf 'Error: %s is not installed or not in PATH\n' "$agent" >&2
+  exit 1
+fi
+
+mkdir -p "$HOME/.config"
+printf '%s\n' "$agent" > "$HOME/.config/default-ai-agent"
+printf 'Default AI agent set to %s\n' "$agent"

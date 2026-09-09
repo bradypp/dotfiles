@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+# Refresh this machine's package inventory.
+set -euo pipefail
+
+repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
+exec "$repo/packages/update"

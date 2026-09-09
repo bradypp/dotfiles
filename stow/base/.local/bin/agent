@@ -1,0 +1,33 @@
+#!/bin/sh
+
+config="$HOME/.config/default-ai-agent"
+
+if [ ! -r "$config" ]; then
+  printf 'No default AI agent configured. Run: set-agent {codex|hermes|claude|opencode|gemini|grok|copilot|omp|crush|pi}\n' >&2
+  exit 1
+fi
+
+IFS= read -r agent < "$config"
+
+case "$agent" in
+  codex|hermes|claude|opencode|gemini|grok|copilot|omp|crush|pi)
+    ;;
+  *)
+    printf 'Invalid default AI agent: %s\n' "$agent" >&2
+    exit 1
+    ;;
+esac
+
+if [ -t 0 ] && [ -t 1 ]; then
+  # Already running inside a terminal: reuse it.
+  agent_cmd=$(command -v "$agent" 2>/dev/null || true)
+  if [ -z "$agent_cmd" ]; then
+    printf 'Error: %s is not installed or not in PATH\n' "$agent" >&2
+    exit 1
+  fi
+  exec "$agent_cmd" "$@"
+else
+  # Launched externally, for example by a KDE keyboard shortcut.
+  # Use zsh so the user's .zshrc, aliases, and mise PATH load.
+  exec /usr/bin/xdg-terminal-exec -- /usr/bin/zsh -lic 'exec "$1" "${@:2}"' zsh "$agent" "$@"
+fi

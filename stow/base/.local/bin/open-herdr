@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [ -t 0 ] && [ -t 1 ]; then
+  # Already running inside a terminal: reuse it.
+  exec herdr "$@"
+else
+  # Launched externally, for example by a KDE keyboard shortcut.
+  # Use zsh so the user's .zshrc and mise environment load.
+  exec /usr/bin/xdg-terminal-exec -- /usr/bin/zsh -lic 'exec "$1" "${@:2}"' zsh herdr "$@"
+fi

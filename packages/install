@@ -1,0 +1,135 @@
+#!/usr/bin/bash
+# Restore packages for the current distribution, then restore Flatpak apps.
+set -euo pipefail
+
+repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)
+readonly repo
+readonly packages_dir="$repo/packages"
+# Reorder this array to change the preferred AUR helper.
+readonly AUR_HELPERS=(shelly paru yay)
+
+if [[ ! -r /etc/os-release ]]; then
+    printf 'Cannot identify the operating system: /etc/os-release is unavailable.\n' >&2
+    exit 1
+fi
+. /etc/os-release
+
+run_as_root() {
+    if ((EUID == 0)); then
+        "$@"
+    elif command -v run0 >/dev/null 2>&1; then
+        run0 "$@"
+    else
+        printf 'Root privileges are required. Run this command, then rerun bootstrap:\n' >&2
+        printf '  sudo' >&2
+        printf ' %q' "$@" >&2
+        printf '\n' >&2
+        return 1
+    fi
+}
+
+read_packages() {
+    local file=$1
+    local -n result=$2
+    result=()
+    [[ -r $file ]] && mapfile -t result < "$file"
+}
+
+install_aur() {
+    local -a aur=()
+    read_packages "$packages_dir/arch/aur.txt" aur
+    ((${#aur[@]})) || return 0
+
+    if ((EUID == 0)); then
+        printf 'Do not build AUR packages as root; run bootstrap as your user.\n' >&2
+        return 1
+    fi
+
+    local helper
+    for helper in "${AUR_HELPERS[@]}"; do
+        command -v "$helper" >/dev/null 2>&1 || continue
+        case $helper in
+            shelly) shelly install aur "${aur[@]}" ;;
+            paru)   paru -S --needed -- "${aur[@]}" ;;
+            yay)    yay -S --needed -- "${aur[@]}" ;;
+        esac
+        return
+    done
+
+    printf 'Install one of these AUR helpers: %s\n' "${AUR_HELPERS[*]}" >&2
+    return 1
+}
+
+install_pacman() {
+    command -v pacman >/dev/null 2>&1 || {
+        printf 'Pacman is required to restore Arch packages.\n' >&2
+        return 1
+    }
+
+    local -a official=() additions=()
+    read_packages "$packages_dir/arch/official.txt" official
+    if [[ ${ID:-} == cachyos ]]; then
+        read_packages "$packages_dir/cachyos/official.txt" additions
+        official+=("${additions[@]}")
+    fi
+
+    if ((${#official[@]})); then
+        run_as_root pacman -S --needed -- "${official[@]}"
+    fi
+    install_aur
+}
+
+install_fedora() {
+    local dnf_command
+    local -a official=() copr=()
+
+    if command -v dnf5 >/dev/null 2>&1; then
+        dnf_command=dnf5
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf_command=dnf
+    else
+        printf 'DNF is required to restore Fedora packages.\n' >&2
+        return 1
+    fi
+
+    read_packages "$packages_dir/fedora/official.txt" official
+    read_packages "$packages_dir/fedora/copr.txt" copr
+    official+=("${copr[@]}")
+    if ((${#official[@]})); then
+        run_as_root "$dnf_command" install "${official[@]}"
+    fi
+}
+
+install_flatpak() {
+    local flatpak_file=$1
+    local remote application
+    [[ -s $flatpak_file ]] || return 0
+
+    if ! command -v flatpak >/dev/null 2>&1; then
+        printf 'Flatpak unavailable; skipping %s.\n' "$flatpak_file"
+        return 0
+    fi
+
+    while read -r remote application; do
+        [[ -n $remote && -n $application ]] || continue
+        flatpak install "$remote" "$application"
+    done < "$flatpak_file"
+}
+
+flatpak_file=''
+case "${ID:-} ${ID_LIKE:-}" in
+    *cachyos*|*arch*)
+        install_pacman
+        flatpak_file=$packages_dir/arch/flatpak.txt
+        ;;
+    *fedora*)
+        install_fedora
+        flatpak_file=$packages_dir/fedora/flatpak.txt
+        ;;
+    *)
+        printf 'Package installation is not implemented for %s.\n' "${ID:-unknown}" >&2
+        exit 1
+        ;;
+esac
+
+install_flatpak "$flatpak_file"

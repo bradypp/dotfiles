@@ -1,0 +1,13 @@
+[Unit]
+Description=Paste Klipper history items when selected
+After=graphical-session.target ydotool.service
+Wants=ydotool.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/libexec/klipper-paste-on-select
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,21 @@
+#!/bin/sh
+# Control HDR/WCG on HDMI-A-1 via the same KScreen config System Settings uses.
+# Bare `hdr` toggles, `hdr on|off` forces, `hdr status` prints enabled|disabled.
+OUT=HDMI-A-1
+state() {
+  kscreen-doctor -o 2>/dev/null | sed -e 's/\x1b\[[0-9;]*m//g' | awk -v out="$OUT" '
+    /^Output:/ { found = ($0 ~ out); next }
+    found && /HDR: enabled/ { print "enabled"; exit }
+    found && /HDR: disabled/ { print "disabled"; exit }
+  '
+}
+enable() { exec kscreen-doctor "output.$OUT.hdr.enable" "output.$OUT.wcg.enable"; }
+disable() { exec kscreen-doctor "output.$OUT.hdr.disable" "output.$OUT.wcg.disable"; }
+case "$1" in
+  on) enable ;;
+  off) disable ;;
+  status) state ;;
+  ""|toggle)
+    if [ "$(state)" = "enabled" ]; then disable; else enable; fi ;;
+  *) echo "usage: hdr [on|off|toggle|status]" >&2; exit 2 ;;
+esac

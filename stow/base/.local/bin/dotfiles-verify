@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+# Run the repository verifier from any directory.
+set -euo pipefail
+
+path=$(readlink -f -- "${BASH_SOURCE[0]}")
+dir=${path%/*}
+while [[ $dir != / ]]; do
+    if [[ -x $dir/verify && -d $dir/stow ]]; then
+        exec "$dir/verify" "$@"
+    fi
+    dir=${dir%/*}
+done
+
+printf 'Could not locate the dotfiles repository.\n' >&2
+exit 1

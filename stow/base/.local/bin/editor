@@ -1,0 +1,13 @@
+#!/bin/sh
+
+editor_id=$(/usr/bin/xdg-mime query default text/plain) || {
+  printf '%s\n' 'Error: unable to query the default text editor.' >&2
+  exit 1
+}
+
+if [ -z "$editor_id" ]; then
+  printf '%s\n' 'Error: no default text editor is configured.' >&2
+  exit 1
+fi
+
+exec /usr/bin/gtk-launch "$editor_id"
