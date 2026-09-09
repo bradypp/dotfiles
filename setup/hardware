@@ -73,7 +73,7 @@ printf '%s\n' "$kscreen" | awk -v out="$hdr_output" '$1 == "Output:" && $3 == ou
 }
 blocks=$(lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS)
 [[ $blocks == *"$vorta_drive_uuid"* ]] || { printf 'Configured Vorta drive not found: %s\n' "$vorta_drive_uuid" >&2; exit 1; }
-findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --target "$vorta_mount_point" >/dev/null || {
+findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --mountpoint "$vorta_mount_point" >/dev/null || {
     printf 'Vorta drive %s is not mounted at %s\n' "$vorta_drive_uuid" "$vorta_mount_point" >&2
     exit 1
 }

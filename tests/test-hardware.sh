@@ -8,7 +8,7 @@ bin="$tmp/bin"
 mkdir -p "$bin"
 printf '#!/usr/bin/bash\nprintf "Output: 1 HDMI-A-1 id\\n\\tHDR: enabled\\n"\n' >"$bin/kscreen-doctor"
 printf '#!/usr/bin/bash\nprintf "NAME UUID MOUNTPOINTS\\nsdb1 TEST-UUID /mnt/vorta\\n"\n' >"$bin/lsblk"
-printf '#!/usr/bin/bash\n[[ ${FINDMNT_OK:-1} == 1 ]]\n' >"$bin/findmnt"
+printf '#!/usr/bin/bash\n[[ " $* " == *" --mountpoint "* ]] && [[ ${FINDMNT_OK:-1} == 1 ]]\n' >"$bin/findmnt"
 chmod +x "$bin"/*
 
 config="$tmp/home-pc.conf"

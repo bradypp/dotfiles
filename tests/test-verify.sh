@@ -15,7 +15,7 @@ printf '#!/usr/bin/bash\nprintf "\\033[01;32mOutput: \\033[0;0m1 HDMI-A-1 id\\n\
 printf '#!/usr/bin/bash\nprintf "sdc2 Local Disk 1C54FDAF54FD8C30 ntfs 10.9T /run/media/paul/Local Disk\\n"\n' >"$bin/lsblk"
 printf '#!/usr/bin/bash\nexit 0\n' >"$bin/vorta"
 printf '#!/usr/bin/bash\nexit 0\n' >"$bin/borg"
-printf '#!/usr/bin/bash\n[[ ${FINDMNT_OK:-1} == 1 ]]\n' >"$bin/findmnt"
+printf '#!/usr/bin/bash\n[[ " $* " == *" --mountpoint "* ]] && [[ ${FINDMNT_OK:-1} == 1 ]]\n' >"$bin/findmnt"
 chmod +x "$bin"/*
 
 HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland "$repo/deploy" --machine home-pc >/dev/null

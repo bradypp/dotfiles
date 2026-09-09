@@ -83,7 +83,7 @@ if [[ -n $DOTFILES_MACHINE_CONFIG ]]; then
     printf '%s\n' "$outputs" | awk -v out="$hdr_output" '$1 == "Output:" && $3 == out { found=1 } END { exit !found }' || {
         printf 'Configured HDR output not found: %s\n' "$hdr_output" >&2; exit 1
     }
-    findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --target "$vorta_mount_point" >/dev/null || {
+    findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --mountpoint "$vorta_mount_point" >/dev/null || {
         printf 'Vorta drive %s is not mounted at %s\n' "$vorta_drive_uuid" "$vorta_mount_point" >&2
         exit 1
     }
