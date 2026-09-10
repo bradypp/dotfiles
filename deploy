@@ -1,14 +1,19 @@
 #!/usr/bin/bash
 # Restow base plus the detected desktop; make new Stow commands executable.
-# Usage: ./deploy [--machine NAME|--no-machine]
+# Usage: ./deploy [--adopt] [--machine NAME|--no-machine]
 set -euo pipefail
 
 script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
 source "$script_repo/lib/dotfiles.sh"
 
+adopt=()
 machine=''
 while (($#)); do
     case $1 in
+        --adopt)
+            adopt=(--adopt)
+            shift
+            ;;
         --machine)
             (($# >= 2)) || { printf '%s\n' 'deploy: --machine needs a name' >&2; exit 2; }
             machine=$2
@@ -19,7 +24,7 @@ while (($#)); do
             shift
             ;;
         -h|--help)
-            printf '%s\n' 'Usage: ./deploy [--machine NAME|--no-machine]'
+            printf '%s\n' 'Usage: ./deploy [--adopt] [--machine NAME|--no-machine]'
             exit 0
             ;;
         *)
@@ -55,8 +60,7 @@ for package_dir in "$DOTFILES_REPO"/stow/*; do
     stow --delete --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" "$package"
 done
 
-# Add --adopt here if you need to overwrite existing files in the target directory.
-stow --restow --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" \
+stow --restow "${adopt[@]}" --no-folding --dir="$DOTFILES_REPO/stow" --target="$HOME" \
     "${DOTFILES_STOW_PACKAGES[@]}"
 
 mkdir -p "$DOTFILES_STATE_HOME"

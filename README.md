@@ -26,13 +26,13 @@ Run the root scripts from `~/repos/dotfiles`:
 |---|---|
 | `./bootstrap [--skip-install] [--machine NAME\|--no-machine]` | Run install, deploy, configure, and verify in order. |
 | `./install` | Restore packages for the detected distribution. |
-| `./deploy [--machine NAME\|--no-machine]` | Restow base and the detected desktop package. |
+| `./deploy [--adopt] [--machine NAME\|--no-machine]` | Restow base and the detected desktop package; adopt conflicts only when requested. |
 | `./configure [--machine NAME\|--no-machine]` | Run setup for the detected session, desktop, and selected machine. |
 | `./update` | Refresh package inventories from the current system. |
 | `./verify` | Check repository-managed state without changing it. |
 | `./tests/run` | Run the regression test suite. |
 
-`--skip-install` avoids package restoration during bootstrap. `--machine home-pc` saves that machine selection. `--no-machine` explicitly clears a saved selection; omitting both reuses a saved machine or uses no machine when none has been selected.
+`--skip-install` avoids package restoration during bootstrap. `--adopt` imports unmanaged target files into the matching Stow package before linking them. `--machine home-pc` saves that machine selection. `--no-machine` explicitly clears a saved selection; omitting both reuses a saved machine or uses no machine when none has been selected.
 
 ## Common management commands
 
@@ -110,7 +110,7 @@ Removing or moving a source file is applied by `stow --restow` on the next `./de
 stow --delete --no-folding --dir="$PWD/stow" --target="$HOME" kde
 ```
 
-Unmanaged target conflicts are reported rather than adopted or overwritten.
+Unmanaged target conflicts are reported rather than adopted or overwritten unless `./deploy --adopt` is explicitly requested.
 
 For convenience, `deploy` gives the user execute bit to files in the selected Stow packages whose first line is a shebang such as `#!/bin/sh` or `#!/usr/bin/bash`. This covers newly added commands without making ordinary configuration files executable.
 
