@@ -5,9 +5,10 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 ## KDE configuration
 
 - Audit KDE config files before deciding whether to Stow complete files.
-- Consider `kdeglobals`, `kwinrc`, `kglobalshortcutsrc`, `kwinrulesrc`, `dolphinrc`, `konsolerc`, and `mimeapps.list` individually.
-- Preserve default applications, Night Light, custom launchers, global shortcuts, panels, widgets, appearance, and window rules if they become useful to restore.
+- Consider `kdeglobals`, `kwinrc`, `kwinrulesrc`, `dolphinrc`, `konsolerc`, and `mimeapps.list` individually.
+- Preserve default applications, Night Light, panels, widgets, appearance, and window rules if they become useful to restore.
 - Keep generated, private, runtime, and monitor-specific KDE state out of the portable KDE package.
+- Later split portable launcher actions from KDE-specific KGlobalAccel bindings when another desktop is implemented; keep the current launchers and `kglobalshortcutsrc` in `stow/kde` until then.
 
 ## Machine configuration
 
@@ -23,19 +24,18 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 
 ## Capture and migration
 
-- Extend `update` beyond package inventories only for state that is not already Stowed.
+- Extend `update` to further unmanaged state only when it is not already Stowed (Herdr plugins and AppImage filenames are already covered).
 - Test Fedora/COPR behavior on an actual Fedora installation.
 - Test clean-machine restoration in a disposable VM.
+- Test CopyQ selection-and-paste end to end in a real Hyprland session before claiming Hyprland support.
 
 ## AI Ran Setup
 
 - Add setup instructions for an ai agent to automatically handle the setup of things that can't be handled by a script or needs verification before install
-- Add Hermes Agent installation and gateway user-service setup without storing credentials.
-- Add Hermes WebUI installation and user-service setup, including its local port configuration.
+- Could ai take care of the [POST_BOOTSTRAP.md](POST_BOOTSTRAP.md) steps?
 
 ## Other
 
-- How to handle appimages?
-- Herdr plugins?
-- Collie: curl -fsSL https://colliepwa.dev/install.sh | sh & systemd setup
-- Hermes web & collie autostart and tailscale 
+- Harness (omp, pi) plugin/extension auto update & install
+- Record original AppImage download URLs; `update` inventories filenames only.
+- Vorga backup should be per distro/de?

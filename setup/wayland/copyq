@@ -1,7 +1,7 @@
 #!/usr/bin/bash
-# Configure CopyQ paste-after-selection on KDE Wayland.
-#
-# Checks for CopyQ, ydotool, kdotool, and curl; imports CopyQ's upstream
+# Configure CopyQ paste-after-selection on supported Wayland desktops.
+# Configures KDE and Hyprland after checking their backend-specific tools.
+# Checks shared CopyQ/ydotool/download tools, imports CopyQ's upstream
 # Wayland Support command after verifying its pinned
 # SHA-256; and enables paste-after-selection. CopyQ's primary-selection
 # synchronization preferences are left unchanged.
@@ -9,13 +9,39 @@ set -euo pipefail
 
 readonly WAYLAND_COMMAND_URL='https://raw.githubusercontent.com/hluk/copyq-commands/master/commands/wayland-support.ini'
 readonly WAYLAND_COMMAND_SHA256='564e1bc9878aa46c43f73b5dbdb295e009a5dd901a4a87a1526ca2642043071f'
-readonly REQUIRED_COMMANDS=(copyq ydotool kdotool curl sha256sum mktemp rm)
+readonly REQUIRED_COMMANDS=(copyq ydotool curl sha256sum mktemp rm)
+BACKEND=''
+BACKEND_COMMAND=''
+
+detect_backend() {
+    local desktop=${XDG_CURRENT_DESKTOP:-unknown}
+    [[ ${XDG_SESSION_TYPE:-} == wayland ]] || {
+        printf 'CopyQ Wayland integration: skipped (unsupported session: %s)\n' \
+            "${XDG_SESSION_TYPE:-unknown}"
+        return 1
+    }
+
+    case ":${desktop^^}:" in
+        *:KDE:*)
+            BACKEND=KDE
+            BACKEND_COMMAND=kdotool
+            ;;
+        *:HYPRLAND:*)
+            BACKEND=Hyprland
+            BACKEND_COMMAND=hyprctl
+            ;;
+        *)
+            printf 'CopyQ Wayland integration: skipped (unsupported desktop: %s)\n' "$desktop"
+            return 1
+            ;;
+    esac
+}
 
 check_commands() {
     local command_name
     local missing=()
 
-    for command_name in "${REQUIRED_COMMANDS[@]}"; do
+    for command_name in "${REQUIRED_COMMANDS[@]}" "$BACKEND_COMMAND"; do
         command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
     done
 
@@ -71,12 +97,8 @@ import_wayland_command() {
 }
 
 main() {
+    detect_backend || return 0
     check_commands
-
-    if [[ ${XDG_SESSION_TYPE:-} != wayland || ${XDG_CURRENT_DESKTOP:-} != KDE ]]; then
-        printf 'Warning: designed for KDE Wayland; detected session=%s desktop=%s\n' \
-            "${XDG_SESSION_TYPE:-unknown}" "${XDG_CURRENT_DESKTOP:-unknown}" >&2
-    fi
 
     /usr/bin/copyq --start-server >/dev/null 2>&1 || true
 

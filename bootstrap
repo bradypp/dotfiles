@@ -22,3 +22,4 @@ $skip_install || "$repo/install"
 "$repo/deploy" "${machine_args[@]}"
 "$repo/configure" "${machine_args[@]}"
 "$repo/verify"
+printf '%s\n' 'Review POST_BOOTSTRAP.md for interactive setup.'

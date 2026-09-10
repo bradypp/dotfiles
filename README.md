@@ -10,7 +10,7 @@ cd ~/repos/dotfiles
 ./bootstrap
 ```
 
-`./bootstrap` starts with no machine on a fresh installation, so it still installs packages and detects the current desktop without applying physical-machine settings. To enable the settings in `machines/home-pc.conf`, select it once:
+`./bootstrap` starts with no machine on a fresh installation, so it still installs packages and detects the current desktop without applying physical-machine settings. When it finishes, review [POST_BOOTSTRAP.md](POST_BOOTSTRAP.md) for interactive and application-owned setup. To enable the settings in `machines/home-pc.conf`, select it once:
 
 ```bash
 ./bootstrap --machine home-pc
@@ -24,11 +24,11 @@ Run the root scripts from `~/repos/dotfiles`:
 
 | Command | Purpose |
 |---|---|
-| `./bootstrap [--skip-install] [--machine NAME\|--no-machine]` | Run install, deploy, configure, and verify in order. |
-| `./install` | Restore packages for the detected distribution. |
+| `./bootstrap [--skip-install] [--machine NAME\|--no-machine]` | Restore packages, files, mise tools, Herdr plugins, setup, and verification. |
+| `./install` | Restore distribution packages and Flatpak applications. |
 | `./deploy [--adopt] [--machine NAME\|--no-machine]` | Restow base and the detected desktop package; adopt conflicts only when requested. |
 | `./configure [--machine NAME\|--no-machine]` | Run setup for the detected session, desktop, and selected machine. |
-| `./update` | Refresh package inventories from the current system. |
+| `./update` | Refresh package, Herdr plugin, and AppImage inventories from the current system. |
 | `./verify` | Check repository-managed state without changing it. |
 | `./tests/run` | Run the regression test suite. |
 
@@ -54,7 +54,7 @@ cd ~/repos/dotfiles
 # Run applicable base, Wayland, KDE, and machine setup.
 ./configure
 
-# Refresh package inventories.
+# Refresh package, Herdr plugin, and AppImage inventories.
 ./update
 
 # Verify without changing anything.
@@ -84,7 +84,7 @@ They locate the repository through their own Stow symlinks. The root `./deploy` 
 
 ## Composition
 
-`stow/base` is always deployed. A KDE session adds `stow/kde`; leaving KDE causes `./deploy` to unstow that known inactive package. Generic setup scripts live under `setup/base/`, Wayland setup scripts under `setup/wayland/`, and KDE setup scripts under `setup/kde/`. Generic setup currently restores missing Oh My Zsh, Powerlevel10k, zsh-syntax-highlighting, and zsh-autosuggestions checkouts under `~/.oh-my-zsh` without replacing the Stowed `.zshrc` or updating existing checkouts.
+`stow/base` is always deployed. A KDE session adds `stow/kde`; leaving KDE causes `./deploy` to unstow that known inactive package. The KDE package currently owns the custom desktop launchers and complete KGlobalAccel configuration; a future desktop implementation can split portable actions from desktop-specific bindings. Generic setup scripts live under `setup/base/`, Wayland setup scripts under `setup/wayland/`, and KDE setup scripts under `setup/kde/`. Generic setup currently restores missing Oh My Zsh, Powerlevel10k, zsh-syntax-highlighting, and zsh-autosuggestions checkouts under `~/.oh-my-zsh` without replacing the Stowed `.zshrc` or updating existing checkouts. It also runs `mise install` for tools declared in the Stowed mise configuration and installs missing Herdr plugins listed in `packages/herdr/plugins.txt`. CopyQ’s Wayland setup supports KDE with `kdotool` and is prepared for Hyprland with `hyprctl`; Hyprland behavior still requires live testing.
 
 The selected machine is saved in `~/.local/state/dotfiles/machine`. `machines/home-pc.conf` currently contains only:
 
@@ -121,7 +121,9 @@ For convenience, `deploy` gives the user execute bit to files in the selected St
 - `packages/arch/aur.txt`: foreign/AUR candidates.
 - `packages/arch/flatpak.txt`: Arch-family Flatpaks.
 - `packages/fedora/`: Fedora official, COPR, and Flatpak inventories.
+- `packages/herdr/plugins.txt`: GitHub-managed Herdr plugin sources, refreshed by `packages/update-user` from `herdr plugin list`.
+- `packages/appimages.txt`: AppImage filenames under `~/AppImages`, refreshed by `packages/update-user`; original download URLs stay manual in [POST_BOOTSTRAP.md](POST_BOOTSTRAP.md).
 
 The AUR helper order is the `AUR_HELPERS` array near the top of `packages/install`.
 
-See [AGENTS.md](AGENTS.md) before maintaining the repository. Deferred KDE, automount, and backup-recovery ideas are in [BACKLOG.md](BACKLOG.md).
+See [AGENTS.md](AGENTS.md) before maintaining the repository. Interactive and application-owned steps are in [POST_BOOTSTRAP.md](POST_BOOTSTRAP.md). Deferred KDE, automount, and backup-recovery ideas are in [BACKLOG.md](BACKLOG.md).

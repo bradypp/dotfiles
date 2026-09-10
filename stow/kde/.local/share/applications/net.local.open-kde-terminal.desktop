@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=/home/paul/.local/bin/open-terminal
+Name=Terminal
+NoDisplay=true
+StartupNotify=false
+Type=Application
+X-KDE-GlobalAccel-CommandShortcut=true

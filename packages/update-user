@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+# Refresh user-managed Herdr plugin and AppImage inventories.
+set -euo pipefail
+
+repo=${DOTFILES_REPO:-$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)}
+packages_dir=$repo/packages
+appimage_dir=${DOTFILES_APPIMAGE_DIR:-$HOME/AppImages}
+mkdir -p "$packages_dir/herdr"
+
+if command -v herdr >/dev/null 2>&1; then
+    plugins_tmp=$(mktemp)
+    trap 'rm -f "${plugins_tmp:-}" "${appimages_tmp:-}"' EXIT
+    while IFS= read -r line; do
+        if [[ $line == *'[github:'*'@'*']'* ]]; then
+            source=${line#*'[github:'}
+            printf '%s\n' "${source%%@*}" >>"$plugins_tmp"
+        fi
+    done < <(herdr plugin list)
+    LC_ALL=C sort -u "$plugins_tmp" >"$packages_dir/herdr/plugins.txt"
+else
+    printf 'Herdr unavailable; leaving %s unchanged.\n' "$packages_dir/herdr/plugins.txt"
+fi
+
+appimages_tmp=$(mktemp)
+trap 'rm -f "${plugins_tmp:-}" "${appimages_tmp:-}"' EXIT
+if [[ -d $appimage_dir ]]; then
+    find "$appimage_dir" -type f -iname '*.appimage' -printf '%P\n' >"$appimages_tmp"
+fi
+LC_ALL=C sort -u "$appimages_tmp" >"$packages_dir/appimages.txt"

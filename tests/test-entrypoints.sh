@@ -9,7 +9,7 @@ fixture="$tmp/repo"
 mkdir -p "$fixture/packages" "$fixture/setup/base" "$fixture/setup/wayland" "$fixture/setup/kde" "$fixture/machines"
 log="$tmp/log"
 
-for path in packages/install packages/update setup/base/oh-my-zsh setup/wayland/copyq setup/wayland/ydotool setup/kde/klipper setup/hardware; do
+for path in packages/install packages/update packages/update-user setup/base/mise setup/base/oh-my-zsh setup/base/plugins setup/wayland/copyq setup/wayland/ydotool setup/kde/klipper setup/hardware; do
     mkdir -p "$fixture/${path%/*}"
     printf '#!/usr/bin/bash\nprintf "%%s\\n" "%s" >>"$TEST_LOG"\n' "$path" >"$fixture/$path"
     chmod +x "$fixture/$path"
@@ -24,11 +24,11 @@ pass 'install only restores packages'
 TEST_LOG="$log" HOME="$tmp/home" XDG_STATE_HOME="$tmp/state" \
 DOTFILES_REPO="$fixture" DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
     "$repo/configure" --machine home-pc
-assert_eq "$(<"$log")" $'setup/base/oh-my-zsh\nsetup/wayland/copyq\nsetup/wayland/ydotool\nsetup/kde/klipper\nsetup/hardware'
+assert_eq "$(<"$log")" $'setup/base/mise\nsetup/base/oh-my-zsh\nsetup/base/plugins\nsetup/wayland/copyq\nsetup/wayland/ydotool\nsetup/kde/klipper\nsetup/hardware'
 pass 'configure runs base, detected setup directories, and machine hardware'
 
 TEST_LOG="$log" DOTFILES_REPO="$fixture" "$repo/update"
-assert_eq "$(<"$log")" $'setup/base/oh-my-zsh\nsetup/wayland/copyq\nsetup/wayland/ydotool\nsetup/kde/klipper\nsetup/hardware\npackages/update'
+assert_eq "$(<"$log")" $'setup/base/mise\nsetup/base/oh-my-zsh\nsetup/base/plugins\nsetup/wayland/copyq\nsetup/wayland/ydotool\nsetup/kde/klipper\nsetup/hardware\npackages/update\npackages/update-user'
 pass 'update only refreshes package inventories'
 
 commands="$tmp/commands"
@@ -38,6 +38,7 @@ for command in install deploy configure verify; do
     printf '#!/usr/bin/bash\nprintf "%%s\\n" "%s" >>"$TEST_LOG"\n' "$command" >"$commands/$command"
     chmod +x "$commands/$command"
 done
-TEST_LOG="$log" DOTFILES_COMMAND_ROOT="$commands" "$repo/bootstrap" --machine home-pc
+bootstrap_output=$(TEST_LOG="$log" DOTFILES_COMMAND_ROOT="$commands" "$repo/bootstrap" --machine home-pc)
 assert_eq "$(<"$log")" $'install\ndeploy\nconfigure\nverify'
-pass 'bootstrap runs lifecycle stages in order'
+assert_contains "$bootstrap_output" 'Review POST_BOOTSTRAP.md for interactive setup.'
+pass 'bootstrap runs lifecycle stages in order and points to manual steps'

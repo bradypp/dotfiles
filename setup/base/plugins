@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# Install missing GitHub-managed Herdr plugins from the tracked inventory.
+set -euo pipefail
+
+repo=${DOTFILES_REPO:-$(cd -- "${BASH_SOURCE[0]%/*}/../.." && pwd -P)}
+inventory=$repo/packages/herdr/plugins.txt
+[[ -s $inventory ]] || exit 0
+command -v herdr >/dev/null 2>&1 || {
+    printf '%s\n' 'Missing command: herdr' >&2
+    exit 1
+}
+
+declare -A installed=()
+while IFS= read -r line; do
+    if [[ $line == *'[github:'*'@'*']'* ]]; then
+        source=${line#*'[github:'}
+        installed["${source%%@*}"]=1
+    fi
+done < <(herdr plugin list)
+
+while IFS= read -r source || [[ -n $source ]]; do
+    [[ -z $source || $source == \#* ]] && continue
+    [[ -n ${installed[$source]+yes} ]] && continue
+    herdr plugin install "$source" --yes
+done <"$inventory"

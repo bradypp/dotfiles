@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=/usr/bin/copyq toggle
+Name=Copyq
+NoDisplay=true
+StartupNotify=false
+Type=Application
+X-KDE-GlobalAccel-CommandShortcut=true

@@ -1,5 +1,6 @@
 #!/usr/bin/bash
-# Refresh package inventories for the detected distribution.
+# Refresh system-package and user-managed software inventories.
 set -euo pipefail
 repo=${DOTFILES_REPO:-$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)}
-exec "$repo/packages/update" "$@"
+"$repo/packages/update" "$@"
+"$repo/packages/update-user"
