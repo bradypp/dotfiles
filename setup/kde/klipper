@@ -2,7 +2,7 @@
 # Configure Klipper paste-after-selection on KDE Wayland.
 #
 # Checks for Plasma Workspace, ydotool, kdotool, and D-Bus; then enables and
-# starts ydotool.service and the stowed klipper-paste-on-select user service.
+# starts the stowed klipper-paste-on-select user service.
 # The service helper lives at ~/.local/libexec/klipper-paste-on-select. Selecting
 # older history entries pastes automatically; selecting the already-current
 # first entry remains a known limitation.
@@ -34,10 +34,9 @@ main() {
     fi
 
     /usr/bin/systemctl --user daemon-reload
-    /usr/bin/systemctl --user enable --now ydotool.service "$SERVICE"
+    /usr/bin/systemctl --user enable --now "$SERVICE"
     /usr/bin/systemctl --user restart "$SERVICE"
 
-    /usr/bin/systemctl --user is-active --quiet ydotool.service
     /usr/bin/systemctl --user is-active --quiet "$SERVICE"
     printf 'Klipper paste-on-selection: enabled and active\n'
     printf 'Known limitation: selecting the already-current first entry may not paste.\n'

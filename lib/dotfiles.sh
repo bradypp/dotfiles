@@ -23,7 +23,7 @@ dotfiles_is_kde() {
 dotfiles_resolve_context() {
     local override=${1-} saved=''
     DOTFILES_STOW_PACKAGES=(base)
-    DOTFILES_SETUP_DIRS=()
+    DOTFILES_SETUP_DIRS=(base)
     DOTFILES_MACHINE_CONFIG=''
 
     if [[ ${DOTFILES_SESSION_TYPE,,} == wayland ]]; then

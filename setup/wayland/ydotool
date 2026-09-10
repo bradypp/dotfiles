@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# Keep the shared ydotool daemon available for Wayland input injection.
+set -euo pipefail
+
+command -v ydotool >/dev/null 2>&1 || {
+    printf '%s\n' 'Missing command: ydotool' >&2
+    exit 1
+}
+command -v systemctl >/dev/null 2>&1 || {
+    printf '%s\n' 'Missing command: systemctl' >&2
+    exit 1
+}
+
+/usr/bin/systemctl --user daemon-reload
+/usr/bin/systemctl --user enable --now ydotool.service
+/usr/bin/systemctl --user is-active --quiet ydotool.service
+printf '%s\n' 'Wayland input injection: ydotool enabled and active'

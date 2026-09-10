@@ -1,0 +1,19 @@
+#!/usr/bin/bash
+# Restore Oh My Zsh, its theme, and plugins without replacing the Stowed zshrc.
+set -euo pipefail
+
+ensure_clone() {
+    local repository=$1 target=$2
+    if [[ ! -e $target ]]; then
+        git clone --depth=1 "$repository" "$target"
+    elif [[ ! -d $target/.git ]]; then
+        printf '%s exists but is not a Git clone\n' "$target" >&2
+        return 1
+    fi
+}
+
+omz=$HOME/.oh-my-zsh
+ensure_clone https://github.com/ohmyzsh/ohmyzsh.git "$omz"
+ensure_clone https://github.com/romkatv/powerlevel10k.git "$omz/custom/themes/powerlevel10k"
+ensure_clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$omz/custom/plugins/zsh-syntax-highlighting"
+ensure_clone https://github.com/zsh-users/zsh-autosuggestions.git "$omz/custom/plugins/zsh-autosuggestions"

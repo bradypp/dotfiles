@@ -30,11 +30,12 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 ## AI Ran Setup
 
 - Add setup instructions for an ai agent to automatically handle the setup of things that can't be handled by a script or needs verification before install
+- Add Hermes Agent installation and gateway user-service setup without storing credentials.
+- Add Hermes WebUI installation and user-service setup, including its local port configuration.
 
 ## Other
 
-- How to handle appimages and curl installs? Are some automatic? (hermes webui, herdr collie, oh-my-zsh, atuin, firtmate installs below)
-curl -fsSL https://get-hermes.ai/install.sh | bash
-curl -fsSL https://colliepwa.dev/install.sh | sh
-- Add different stow categories for de's like hyprland and distros like arch/cachy/fedora (some config is tied to one of these like shelly)
-- Double check all current links, will they break? Do we need to link anything else?
+- How to handle appimages?
+- Herdr plugins?
+- Collie: curl -fsSL https://colliepwa.dev/install.sh | sh & systemd setup
+- Hermes web & collie autostart and tailscale 

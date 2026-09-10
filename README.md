@@ -51,7 +51,7 @@ cd ~/repos/dotfiles
 # Deploy managed files.
 ./deploy
 
-# Run applicable Wayland, KDE, and machine setup.
+# Run applicable base, Wayland, KDE, and machine setup.
 ./configure
 
 # Refresh package inventories.
@@ -84,7 +84,7 @@ They locate the repository through their own Stow symlinks. The root `./deploy` 
 
 ## Composition
 
-`stow/base` is always deployed. A KDE session adds `stow/kde`; leaving KDE causes `./deploy` to unstow that known inactive package. Wayland setup scripts live under `setup/wayland/`, and KDE setup scripts live under `setup/kde/`.
+`stow/base` is always deployed. A KDE session adds `stow/kde`; leaving KDE causes `./deploy` to unstow that known inactive package. Generic setup scripts live under `setup/base/`, Wayland setup scripts under `setup/wayland/`, and KDE setup scripts under `setup/kde/`. Generic setup currently restores missing Oh My Zsh, Powerlevel10k, zsh-syntax-highlighting, and zsh-autosuggestions checkouts under `~/.oh-my-zsh` without replacing the Stowed `.zshrc` or updating existing checkouts.
 
 The selected machine is saved in `~/.local/state/dotfiles/machine`. `machines/home-pc.conf` currently contains only:
 

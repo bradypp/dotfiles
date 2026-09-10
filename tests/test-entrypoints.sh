@@ -6,10 +6,10 @@ repo=$(cd -- "${BASH_SOURCE[0]%/*}/.." && pwd -P)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 fixture="$tmp/repo"
-mkdir -p "$fixture/packages" "$fixture/setup/wayland" "$fixture/setup/kde" "$fixture/machines"
+mkdir -p "$fixture/packages" "$fixture/setup/base" "$fixture/setup/wayland" "$fixture/setup/kde" "$fixture/machines"
 log="$tmp/log"
 
-for path in packages/install packages/update setup/wayland/copyq setup/kde/klipper setup/hardware; do
+for path in packages/install packages/update setup/base/oh-my-zsh setup/wayland/copyq setup/wayland/ydotool setup/kde/klipper setup/hardware; do
     mkdir -p "$fixture/${path%/*}"
     printf '#!/usr/bin/bash\nprintf "%%s\\n" "%s" >>"$TEST_LOG"\n' "$path" >"$fixture/$path"
     chmod +x "$fixture/$path"
@@ -24,11 +24,11 @@ pass 'install only restores packages'
 TEST_LOG="$log" HOME="$tmp/home" XDG_STATE_HOME="$tmp/state" \
 DOTFILES_REPO="$fixture" DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
     "$repo/configure" --machine home-pc
-assert_eq "$(<"$log")" $'setup/wayland/copyq\nsetup/kde/klipper\nsetup/hardware'
-pass 'configure runs only detected setup directories and machine hardware'
+assert_eq "$(<"$log")" $'setup/base/oh-my-zsh\nsetup/wayland/copyq\nsetup/wayland/ydotool\nsetup/kde/klipper\nsetup/hardware'
+pass 'configure runs base, detected setup directories, and machine hardware'
 
 TEST_LOG="$log" DOTFILES_REPO="$fixture" "$repo/update"
-assert_eq "$(<"$log")" $'setup/wayland/copyq\nsetup/kde/klipper\nsetup/hardware\npackages/update'
+assert_eq "$(<"$log")" $'setup/base/oh-my-zsh\nsetup/wayland/copyq\nsetup/wayland/ydotool\nsetup/kde/klipper\nsetup/hardware\npackages/update'
 pass 'update only refreshes package inventories'
 
 commands="$tmp/commands"
