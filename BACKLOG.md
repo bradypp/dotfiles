@@ -36,7 +36,5 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 - How to handle appimages and curl installs? Are some automatic? (hermes webui, herdr collie, oh-my-zsh, atuin, firtmate installs below)
 curl -fsSL https://get-hermes.ai/install.sh | bash
 curl -fsSL https://colliepwa.dev/install.sh | sh
-curl -fsSL https://kunchenguid.github.io/treehouse/install.sh | sh
-curl -fsSL https://raw.githubusercontent.com/kunchenguid/no-mistakes/main/docs/install.sh | sh
 - Add different stow categories for de's like hyprland and distros like arch/cachy/fedora (some config is tied to one of these like shelly)
 - Double check all current links, will they break? Do we need to link anything else?

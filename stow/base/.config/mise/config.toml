@@ -12,11 +12,6 @@ opencode = "latest"
 pi = "latest"
 pnpm = "latest"
 uv = "latest"
-"npm:gh-axi" = "latest"
-"npm:chrome-devtools-axi" = "latest"
-"npm:lavish-axi" = "latest"
-"npm:tasks-axi" = "latest"
-"npm:quota-axi" = "latest"
 
 [settings]
 registry_floating = false
