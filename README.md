@@ -132,7 +132,10 @@ The command refuses paths outside `$HOME`, symbolic links, missing packages
 without `-c`, and existing repository destinations. If Stow fails, it restores
 the imported path to its original location.
 
-Removing or moving a source file is applied by `stow --restow` on the next `./deploy`. Unstow an entire package before deleting its package directory:
+Removing or moving a source file is applied on the next `./deploy`. In addition
+to `stow --restow`, deployment removes broken links below package-owned
+top-level paths only when their targets resolve inside this repository's Stow
+packages. Unstow an entire package before deleting its package directory:
 
 ```bash
 stow --delete --no-folding --dir="$PWD/stow" --target="$HOME" kde

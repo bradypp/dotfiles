@@ -92,7 +92,7 @@ confirm_close = false
 prompt_new_tab_name = false
 
 # set -g mouse on
-mouse_capture = false
+mouse_capture = true
 
 # status-right had the zoom flag followed by #h
 tab_bar_right = [{ type = "zoom" }, { type = "hostname" }]

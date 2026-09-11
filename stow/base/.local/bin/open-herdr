@@ -6,6 +6,8 @@ if [ -t 0 ] && [ -t 1 ]; then
   exec herdr "$@"
 else
   # Launched externally, for example by a KDE keyboard shortcut.
-  # Use zsh so the user's .zshrc and mise environment load.
-  exec "$HOME/.local/bin/open-terminal" /usr/bin/zsh -lic 'exec "$1" "${@:2}"' zsh herdr "$@"
+  # Use zsh so the user's .zshrc and mise environment load, then leave an
+  # interactive login shell behind when the Herdr client detaches.
+  exec "$HOME/.local/bin/open-terminal" /usr/bin/zsh -lic \
+    'herdr "$@"; exec /usr/bin/zsh -l' zsh "$@"
 fi

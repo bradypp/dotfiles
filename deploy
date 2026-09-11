@@ -72,6 +72,30 @@ selected() {
     return 1
 }
 
+# Stow normally prunes removed files during --restow, but a deleted source
+# symlink can leave its deployed link broken. Limit cleanup to broken links
+# below package-owned top-level paths whose targets resolve inside this repo.
+declare -A stow_roots=()
+for package_dir in "$DOTFILES_REPO"/stow/*; do
+    [[ -d $package_dir ]] || continue
+    while IFS= read -r -d '' source_root; do
+        stow_roots["$HOME/${source_root##*/}"]=1
+    done < <(find "$package_dir" -mindepth 1 -maxdepth 1 -print0)
+done
+
+for stow_root in "${!stow_roots[@]}"; do
+    [[ -e $stow_root || -L $stow_root ]] || continue
+    while IFS= read -r -d '' stale_link; do
+        [[ $stale_link == "$DOTFILES_REPO"/* ]] && continue
+        resolved_target=$(readlink -m -- "$stale_link")
+        case $resolved_target in
+            "$DOTFILES_REPO"/stow/*/*)
+                rm -- "$stale_link"
+                ;;
+        esac
+    done < <(find "$stow_root" -xtype l -print0)
+done
+
 for package_dir in "$DOTFILES_REPO"/stow/*; do
     [[ -d $package_dir ]] || continue
     package=${package_dir##*/}

@@ -64,6 +64,19 @@ DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
 [[ ! -e $home/.old && ! -L $home/.old ]] || fail 'restow did not prune stale link'
 pass 'restow adds and removes package files'
 
+mkdir -p "$home/.local/libexec/herdr-agents" "$tmp/bin"
+ln -s "$fixture/stow/base/.local/libexec/herdr-agents/codex" \
+    "$home/.local/libexec/herdr-agents/codex"
+printf '#!/bin/sh\nexit 0\n' >"$tmp/bin/stow"
+chmod +x "$tmp/bin/stow"
+HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 PATH="$tmp/bin:$PATH" \
+    "$repo/deploy" --machine none >/dev/null
+[[ ! -e $home/.local/libexec/herdr-agents/codex && \
+   ! -L $home/.local/libexec/herdr-agents/codex ]] ||
+    fail 'deploy did not prune a stale link created from a source symlink'
+pass 'deploy removes stale links created from deleted source symlinks'
+
 rm "$home/.base"
 printf unmanaged >"$home/.base"
 if HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
