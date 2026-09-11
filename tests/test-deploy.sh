@@ -20,6 +20,8 @@ DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
     "$repo/deploy"
 assert_link_to "$home/.base" "$fixture/stow/base/.base"
 assert_link_to "$home/.kde" "$fixture/stow/kde/.kde"
+assert_file "$tmp/state/dotfiles/stow-links"
+assert_contains "$(<"$tmp/state/dotfiles/stow-links")" '.base'
 [[ -x $fixture/stow/base/.local/bin/new-command ]] || fail 'shebang script was not made executable'
 [[ ! -x $fixture/stow/base/.config/example.conf ]] || fail 'non-script config was made executable'
 pass 'deploy composes base and detected KDE'
@@ -64,9 +66,16 @@ DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
 [[ ! -e $home/.old && ! -L $home/.old ]] || fail 'restow did not prune stale link'
 pass 'restow adds and removes package files'
 
-mkdir -p "$home/.local/libexec/herdr-agents" "$tmp/bin"
-ln -s "$fixture/stow/base/.local/libexec/herdr-agents/codex" \
-    "$home/.local/libexec/herdr-agents/codex"
+mkdir -p "$fixture/stow/base/.local/libexec/herdr-agents" "$tmp/bin"
+printf '#!/bin/sh\n' >"$fixture/stow/base/.local/libexec/herdr-agent-dispatch"
+ln -s ../herdr-agent-dispatch "$fixture/stow/base/.local/libexec/herdr-agents/codex"
+HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
+    "$repo/deploy" --machine none >/dev/null
+assert_contains "$(<"$tmp/state/dotfiles/stow-links")" \
+    '.local/libexec/herdr-agents/codex'
+rm "$fixture/stow/base/.local/libexec/herdr-agents/codex"
+rm "$fixture/stow/base/.local/libexec/herdr-agent-dispatch"
 printf '#!/bin/sh\nexit 0\n' >"$tmp/bin/stow"
 chmod +x "$tmp/bin/stow"
 HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \

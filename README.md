@@ -133,8 +133,9 @@ without `-c`, and existing repository destinations. If Stow fails, it restores
 the imported path to its original location.
 
 Removing or moving a source file is applied on the next `./deploy`. In addition
-to `stow --restow`, deployment removes broken links below package-owned
-top-level paths only when their targets resolve inside this repository's Stow
+to `stow --restow`, deployment checks the paths recorded by the previous
+successful deployment in `~/.local/state/dotfiles/stow-links` and removes a
+broken link only when its target resolves inside this repository's Stow
 packages. Unstow an entire package before deleting its package directory:
 
 ```bash

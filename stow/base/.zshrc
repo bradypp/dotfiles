@@ -165,6 +165,4 @@ export NVM_DIR="$HOME/.config/nvm"
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 eval "$(mise activate zsh)"
 
-. "$HOME/.atuin/bin/env"
-
 eval "$(atuin init zsh)"
