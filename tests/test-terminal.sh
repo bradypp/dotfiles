@@ -11,13 +11,14 @@ trap 'rm -rf "$tmp"' EXIT
 [[ ! -e $repo/stow/kde/.config/kde-xdg-terminals.list ]] || fail 'terminal default is being overridden'
 [[ ! -e $repo/setup/kde/terminal ]] || fail 'unnecessary terminal setup remains'
 
-mkdir "$tmp/bin"
+mkdir "$tmp/bin" "$tmp/config"
 printf '#!/bin/sh\nprintf "kitty.desktop\\n"\n' >"$tmp/bin/kreadconfig6"
-printf '#!/bin/sh\nprintf "%%s\\n" "$*" >"%s"\n' "$tmp/launched" >"$tmp/bin/gtk-launch"
-printf '#!/bin/sh\nprintf "wrong launcher\\n" >"%s"\n' "$tmp/launched" >"$tmp/bin/xdg-terminal-exec"
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >"%s"\n' "$tmp/launched" >"$tmp/bin/xdg-terminal-exec"
+printf '#!/bin/sh\nprintf "wrong launcher\\n" >"%s"\n' "$tmp/launched" >"$tmp/bin/gtk-launch"
 chmod +x "$tmp/bin/"*
-PATH="$tmp/bin:$PATH" "$repo/stow/kde/.local/bin/open-terminal"
-assert_eq "$(<"$tmp/launched")" 'kitty'
+XDG_CONFIG_HOME="$tmp/config" PATH="$tmp/bin:$PATH" "$repo/stow/kde/.local/bin/open-terminal" /bin/printf '%s' 'two words'
+assert_eq "$(<"$tmp/launched")" '-- /bin/printf %s two words'
+assert_eq "$(<"$tmp/config/kde-xdg-terminals.list")" 'kitty.desktop'
 verify_content=$(<"$repo/verify")
 assert_contains "$verify_content" 'kreadconfig6'
 if [[ $verify_content == *'xdg-terminal-exec --print-id'* ]]; then

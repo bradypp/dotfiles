@@ -1,5 +1,15 @@
 #!/bin/sh
-# Launch the KDE default terminal (kdeglobals General/TerminalService).
+# Launch KDE's default terminal, optionally running a command in it.
+set -eu
+
 svc=$(kreadconfig6 --file kdeglobals --group General --key TerminalService 2>/dev/null)
 [ -n "$svc" ] || svc="org.kde.konsole.desktop"
-exec gtk-launch "${svc%.desktop}"
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+mkdir -p "$config_home"
+printf '%s\n' "$svc" >"$config_home/kde-xdg-terminals.list"
+
+if [ "$#" -eq 0 ]; then
+  exec xdg-terminal-exec
+fi
+exec xdg-terminal-exec -- "$@"

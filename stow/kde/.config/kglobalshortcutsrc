@@ -299,7 +299,7 @@ _launch=Meta+Shift+X
 _launch=Meta+Shift+Z
 
 [services][net.local.agent.desktop]
-_launch=Meta+Shift+O
+_launch=Meta+Shift+Q
 
 [services][net.local.copyq.desktop]
 _launch=Meta+V

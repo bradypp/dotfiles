@@ -109,6 +109,27 @@ source $ZSH/oh-my-zsh.sh
 
 # export ARCHFLAGS="-arch x86_64"
 
+# Start coding agents in $HOME/workspace only when launched from $HOME.
+_workspace() {
+  if [[ "$PWD" == "$HOME" ]]; then
+    (mkdir -p "$HOME/workspace" && cd "$HOME/workspace" && command "$@")
+  else
+    command "$@"
+  fi
+}
+
+alias omp="_workspace omp"
+alias pi="_workspace pi"
+alias codex="_workspace codex"
+alias opencode="_workspace opencode"
+alias claude="_workspace claude"
+alias gemini="_workspace gemini"
+alias grok="_workspace grok"
+alias copilot="_workspace copilot"
+alias crush="_workspace crush"
+alias hermes="_workspace hermes"
+
+alias a="agent"
 alias oc="opencode --auto"
 alias cl="printf '\033[2J\033[3J\033[H' && claude"
 alias cx="codex"
@@ -118,6 +139,7 @@ alias co="copilot"
 alias o="omp"
 alias cr="crush"
 alias he="hermes"
+
 alias d="docker"
 alias r="rails"
 alias t="tmux attach || tmux new -s Work"
@@ -128,25 +150,6 @@ alias icx="tdl c cx"
 alias mup="MISE_MINIMUM_RELEASE_AGE=0 mise up"
 alias vsc="code ."
 n() { if [ "$#" -eq 0 ]; then command nvim . ; else command nvim "$@"; fi; }
-
-# Start coding agents in /tmp only when launched from $HOME.
-# _agent() {
-#   if [[ "$PWD" == "$HOME" ]]; then
-#     (cd /tmp && command "$@")
-#   else
-#     command "$@"
-#   fi
-# }
-# omp()      { _agent omp "$@"; }
-# pi()       { _agent pi "$@"; }
-# codex()    { _agent codex "$@"; }
-# opencode() { _agent opencode "$@"; }
-# claude()   { _agent claude "$@"; }
-# gemini()   { _agent geminiL "$@"; }
-# grok()     { _agent grok "$@"; }
-# copilot()  { _agent copilot "$@"; }
-# crush()    { _agent crush "$@"; }
-# hermes()    { _agent hermes "$@"; }
 
 # export HERDR_ENV=1
 
