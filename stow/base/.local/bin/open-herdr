@@ -1,5 +1,5 @@
 #!/bin/sh
-# Open herdr in the current terminal or launch it through xdg-terminal-exec.
+# Open herdr in the current terminal or through the default terminal launcher.
 
 if [ -t 0 ] && [ -t 1 ]; then
   # Already running inside a terminal: reuse it.
@@ -7,5 +7,5 @@ if [ -t 0 ] && [ -t 1 ]; then
 else
   # Launched externally, for example by a KDE keyboard shortcut.
   # Use zsh so the user's .zshrc and mise environment load.
-  exec /usr/bin/xdg-terminal-exec -- /usr/bin/zsh -lic 'exec "$1" "${@:2}"' zsh herdr "$@"
+  exec "$HOME/.local/bin/open-terminal" /usr/bin/zsh -lic 'exec "$1" "${@:2}"' zsh herdr "$@"
 fi
