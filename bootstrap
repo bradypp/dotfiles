@@ -1,25 +1,42 @@
 #!/usr/bin/bash
 # Provision packages, deploy links, configure components, and verify the result.
-# Usage: ./bootstrap [--skip-install] [--machine NAME|--no-machine]
+# Usage: ./bootstrap [-s|--skip-install] [-a|--adopt] [-m|--machine NAME|-n|--no-machine]
 set -euo pipefail
 repo=${DOTFILES_COMMAND_ROOT:-$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)}
 skip_install=false
 machine_args=()
+adopt_args=()
 while (($#)); do
     case $1 in
-        --skip-install) skip_install=true; shift ;;
-        --machine)
+        -s|--skip-install) skip_install=true; shift ;;
+        -a|--adopt) adopt_args=(--adopt); shift ;;
+        -m|--machine)
             (($# >= 2)) || { printf '%s\n' 'bootstrap: --machine needs a name' >&2; exit 2; }
             machine_args=(--machine "$2"); shift 2 ;;
-        --no-machine) machine_args=(--no-machine); shift ;;
+        -n|--no-machine) machine_args=(--no-machine); shift ;;
         -h|--help)
-            printf '%s\n' 'Usage: ./bootstrap [--skip-install] [--machine NAME|--no-machine]'
+            printf '%s\n' 'Usage: ./bootstrap [-s|--skip-install] [-a|--adopt] [-m|--machine NAME|-n|--no-machine]'
             exit 0 ;;
+        -?*)
+            options=${1#-}; shift
+            while [[ -n $options ]]; do
+                option=${options:0:1}; options=${options:1}
+                case $option in
+                    s) skip_install=true ;;
+                    a) adopt_args=(--adopt) ;;
+                    n) machine_args=(--no-machine) ;;
+                    m)
+                        [[ -z $options ]] || { printf '%s\n' 'bootstrap: -m machine name must be a separate argument' >&2; exit 2; }
+                        (($#)) || { printf '%s\n' 'bootstrap: -m needs a name' >&2; exit 2; }
+                        machine_args=(--machine "$1"); shift ;;
+                    *) printf 'bootstrap: unknown option: -%s\n' "$option" >&2; exit 2 ;;
+                esac
+            done ;;
         *) printf 'bootstrap: unknown argument: %s\n' "$1" >&2; exit 2 ;;
     esac
 done
 $skip_install || "$repo/install"
-"$repo/deploy" "${machine_args[@]}"
+"$repo/deploy" "${adopt_args[@]}" "${machine_args[@]}"
 "$repo/configure" "${machine_args[@]}"
 "$repo/verify"
 printf '%s\n' 'Review POST_BOOTSTRAP.md for interactive setup.'

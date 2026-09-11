@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Run setup scripts for the detected session/desktop and selected machine.
-# Usage: ./configure [--machine NAME|--no-machine]
+# Usage: ./configure [-m|--machine NAME|-n|--no-machine]
 set -euo pipefail
 script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
 source "$script_repo/lib/dotfiles.sh"
@@ -8,13 +8,26 @@ source "$script_repo/lib/dotfiles.sh"
 machine=''
 while (($#)); do
     case $1 in
-        --machine)
+        -m|--machine)
             (($# >= 2)) || { printf '%s\n' 'configure: --machine needs a name' >&2; exit 2; }
             machine=$2; shift 2 ;;
-        --no-machine) machine=none; shift ;;
+        -n|--no-machine) machine=none; shift ;;
         -h|--help)
-            printf '%s\n' 'Usage: ./configure [--machine NAME|--no-machine]'
+            printf '%s\n' 'Usage: ./configure [-m|--machine NAME|-n|--no-machine]'
             exit 0 ;;
+        -?*)
+            options=${1#-}; shift
+            while [[ -n $options ]]; do
+                option=${options:0:1}; options=${options:1}
+                case $option in
+                    n) machine=none ;;
+                    m)
+                        [[ -z $options ]] || { printf '%s\n' 'configure: -m machine name must be a separate argument' >&2; exit 2; }
+                        (($#)) || { printf '%s\n' 'configure: -m needs a name' >&2; exit 2; }
+                        machine=$1; shift ;;
+                    *) printf 'configure: unknown option: -%s\n' "$option" >&2; exit 2 ;;
+                esac
+            done ;;
         *) printf 'configure: unknown argument: %s\n' "$1" >&2; exit 2 ;;
     esac
 done

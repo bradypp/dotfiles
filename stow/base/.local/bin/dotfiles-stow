@@ -1,0 +1,94 @@
+#!/usr/bin/bash
+# Import a home path into a selected GNU Stow package.
+set -euo pipefail
+
+usage() {
+    printf 'Usage: dotfiles-stow [-p|--package PACKAGE | -c|--create-package PACKAGE] PATH\n' >&2
+}
+
+path=$(readlink -f -- "${BASH_SOURCE[0]}")
+repo=${path%/*}
+while [[ $repo != / ]]; do
+    if [[ -d $repo/stow && -x $repo/deploy ]]; then
+        break
+    fi
+    repo=${repo%/*}
+done
+if [[ $repo == / ]]; then
+    printf 'Could not locate the dotfiles repository.\n' >&2
+    exit 1
+fi
+
+package=base
+create_package=false
+while (($#)); do
+    case $1 in
+        -p|--package)
+            (($# >= 2)) || { printf '%s\n' "$1 requires a package name." >&2; usage; exit 2; }
+            package=$2; shift 2 ;;
+        -c|--create-package)
+            (($# >= 2)) || { printf '%s\n' "$1 requires a package name." >&2; usage; exit 2; }
+            package=$2; create_package=true; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        --) shift; break ;;
+        -*) printf 'Unknown option: %s\n' "$1" >&2; usage; exit 2 ;;
+        *) break ;;
+    esac
+done
+
+if (( $# != 1 )); then
+    usage
+    exit 2
+fi
+if [[ -z $package || $package == . || $package == .. || $package == */* ]]; then
+    printf 'Package must be a single directory name: %s\n' "$package" >&2
+    exit 2
+fi
+
+source_path=$1
+if [[ -L $source_path ]]; then
+    printf 'Path is already a symbolic link: %s\n' "$source_path" >&2
+    exit 1
+fi
+if [[ ! -e $source_path ]]; then
+    printf 'Path does not exist: %s\n' "$source_path" >&2
+    exit 1
+fi
+
+home=$(readlink -f -- "$HOME")
+source_path=$(readlink -f -- "$source_path")
+case $source_path in
+    "$home"/*) relative_path=${source_path#"$home"/} ;;
+    *) printf 'Path must be inside HOME: %s\n' "$source_path" >&2; exit 1 ;;
+esac
+
+package_dir=$repo/stow/$package
+if [[ -e $package_dir && ! -d $package_dir ]]; then
+    printf 'Package path is not a directory: %s\n' "$package_dir" >&2
+    exit 1
+fi
+if [[ ! -d $package_dir ]]; then
+    if [[ $create_package == true ]]; then
+        mkdir -p -- "$package_dir"
+    else
+        printf 'Package does not exist: %s\n' "$package" >&2
+        exit 1
+    fi
+fi
+
+destination=$package_dir/$relative_path
+if [[ -e $destination || -L $destination ]]; then
+    printf 'Repository destination already exists: %s\n' "$destination" >&2
+    exit 1
+fi
+
+mkdir -p -- "${destination%/*}"
+mv -- "$source_path" "$destination"
+if ! stow --restow --no-folding --dir="$repo/stow" --target="$home" "$package"; then
+    mkdir -p -- "${source_path%/*}"
+    mv -- "$destination" "$source_path"
+    printf 'Stow failed; restored the original path.\n' >&2
+    exit 1
+fi
+
+printf 'Imported %s into package %s.\n' "$source_path" "$package"

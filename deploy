@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Restow base plus the detected desktop; make new Stow commands executable.
-# Usage: ./deploy [--adopt] [--machine NAME|--no-machine]
+# Usage: ./deploy [-a|--adopt] [-m|--machine NAME|-n|--no-machine]
 set -euo pipefail
 
 script_repo=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)
@@ -10,22 +10,41 @@ adopt=()
 machine=''
 while (($#)); do
     case $1 in
-        --adopt)
+        -a|--adopt)
             adopt=(--adopt)
             shift
             ;;
-        --machine)
+        -m|--machine)
             (($# >= 2)) || { printf '%s\n' 'deploy: --machine needs a name' >&2; exit 2; }
             machine=$2
             shift 2
             ;;
-        --no-machine)
+        -n|--no-machine)
             machine=none
             shift
             ;;
         -h|--help)
-            printf '%s\n' 'Usage: ./deploy [--adopt] [--machine NAME|--no-machine]'
+            printf '%s\n' 'Usage: ./deploy [-a|--adopt] [-m|--machine NAME|-n|--no-machine]'
             exit 0
+            ;;
+        -?*)
+            options=${1#-}
+            shift
+            while [[ -n $options ]]; do
+                option=${options:0:1}
+                options=${options:1}
+                case $option in
+                    a) adopt=(--adopt) ;;
+                    n) machine=none ;;
+                    m)
+                        [[ -z $options ]] || { printf '%s\n' 'deploy: -m machine name must be a separate argument' >&2; exit 2; }
+                        (($#)) || { printf '%s\n' 'deploy: -m needs a name' >&2; exit 2; }
+                        machine=$1
+                        shift
+                        ;;
+                    *) printf 'deploy: unknown option: -%s\n' "$option" >&2; exit 2 ;;
+                esac
+            done
             ;;
         *)
             printf 'deploy: unknown argument: %s\n' "$1" >&2

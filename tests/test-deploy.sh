@@ -36,6 +36,16 @@ DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
 pass 'machine selection is optional and can be cleared explicitly'
 
 HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
+    "$repo/deploy" -m home-pc >/dev/null
+assert_eq "$(<"$tmp/state/dotfiles/machine")" home-pc
+HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland \
+    "$repo/deploy" -n >/dev/null
+[[ ! -e $tmp/state/dotfiles/machine ]] || fail '-n did not clear saved selection'
+pass 'deploy supports short machine options'
+
+HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
 DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
     "$repo/deploy" --machine none
 assert_link_to "$home/.base" "$fixture/stow/base/.base"
@@ -74,6 +84,24 @@ fi
 assert_eq "$(<"$fixture/stow/base/.base")" unmanaged
 assert_link_to "$home/.base" "$fixture/stow/base/.base"
 pass 'deploy adopts unmanaged conflicts when explicitly requested'
+
+rm "$home/.base"
+printf short-adopt >"$home/.base"
+HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
+    "$repo/deploy" -am home-pc >/dev/null
+assert_eq "$(<"$fixture/stow/base/.base")" short-adopt
+assert_eq "$(<"$tmp/state/dotfiles/machine")" home-pc
+HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
+    "$repo/deploy" -na >/dev/null
+[[ ! -e $tmp/state/dotfiles/machine ]] || fail '-na did not clear saved selection'
+if HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
+   DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
+       "$repo/deploy" -amhome-pc >"$tmp/out" 2>"$tmp/error"; then
+    fail 'deploy accepted an attached -m machine value'
+fi
+pass 'deploy supports combined short flags without attached machine values'
 
 if HOME="$home" XDG_STATE_HOME="$tmp/state" DOTFILES_REPO="$fixture" \
    DOTFILES_CURRENT_DESKTOP=GNOME DOTFILES_SESSION_TYPE=x11 \
