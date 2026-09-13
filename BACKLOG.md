@@ -40,3 +40,4 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 - Record original AppImage download URLs; `update` inventories filenames only.
 - Vorga backup should be per distro/de?
 - Do we need to add any other package managers?
+- pip and uv packages?
