@@ -1,0 +1,4 @@
+#!/bin/sh
+# Restart Plasma shell (recover from a frozen/glitched desktop).
+set -eu
+exec systemctl --user restart plasma-plasmashell.service
