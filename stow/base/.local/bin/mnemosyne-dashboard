@@ -1,0 +1,97 @@
+#!/bin/sh
+# Manage the Mnemosyne dashboard server, opening it in the default browser.
+# Usage: mnemosyne-dashboard [start|stop|status]  (no args = start: ensure running, open, print URL)
+set -eu
+
+# Focus the default browser's window (best effort, KDE only).
+# No-op anywhere kdotool is absent, so this stays portable.
+focus_browser() {
+  command -v kdotool >/dev/null 2>&1 || return 0
+  id=$(/usr/bin/xdg-mime query default x-scheme-handler/https 2>/dev/null \
+    || /usr/bin/xdg-mime query default text/html 2>/dev/null) || return 0
+  [ -n "$id" ] || return 0
+  cls=""
+  for d in "${XDG_DATA_HOME:-$HOME/.local/share}/applications" \
+      /usr/local/share/applications \
+      /usr/share/applications \
+      /var/lib/flatpak/exports/share/applications; do
+    if [ -f "$d/$id" ]; then
+      cls=$(grep -i -m1 '^StartupWMClass=' "$d/$id" 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
+      break
+    fi
+  done
+  [ -n "$cls" ] || cls=${id%.desktop}
+  [ -n "$cls" ] || return 0
+  kdotool search "$cls" windowactivate >/dev/null 2>&1 || true
+}
+
+cmd="${1:-open}"
+case "$cmd" in
+  open | start | stop | status) ;;
+  -h | --help | help)
+    printf '%s\n' 'Usage: mnemosyne-dashboard [start|stop|status]'
+    printf '%s\n' '  no args = start: ensure the server is running, open it in the browser, print URL'
+    exit 0
+    ;;
+  *)
+    printf '%s\n' "Unknown command: $cmd (try: start, stop, status)" >&2
+    exit 2
+    ;;
+esac
+
+hermes_home="${HERMES_HOME:-$HOME/.hermes}"
+plugin_init="$hermes_home/plugins/mnemosyne-dashboard/__init__.py"
+
+if [ ! -f "$plugin_init" ]; then
+  printf '%s\n' "Error: mnemosyne-dashboard plugin not found at $plugin_init." >&2
+  printf '%s\n' 'Install it with: hermes plugins install wysie/mnemosyne-dashboard --enable' >&2
+  exit 1
+fi
+
+if [ -x "$hermes_home/hermes-agent/venv/bin/python" ]; then
+  py="$hermes_home/hermes-agent/venv/bin/python"
+else
+  py="/usr/bin/python3"
+fi
+
+url=$("$py" - "$plugin_init" "$cmd" <<'PY'
+import importlib.util
+import json
+import sys
+
+path, cmd = sys.argv[1], sys.argv[2]
+spec = importlib.util.spec_from_file_location("mnemo_dash", path)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+if cmd == "stop":
+    print(mod._stop({}))
+elif cmd == "status":
+    print(mod._status({}))
+else:  # open, start: ensure running, emit local URL
+    status = json.loads(mod._status({}))
+    if not status.get("running") or not status.get("reachable"):
+        started = json.loads(mod._start({}))
+        if not started.get("ok"):
+            print(json.dumps(started), file=sys.stderr)
+            sys.exit(1)
+        status = json.loads(mod._status({}))
+    print(status.get("local_url") or status["config"]["local_url"])
+PY
+) || exit 1
+
+case "$cmd" in
+  open | start)
+    if [ -z "$url" ]; then
+      printf '%s\n' 'Error: could not determine the dashboard URL.' >&2
+      exit 1
+    fi
+    /usr/bin/xdg-open "$url"
+    sleep 0.5
+    focus_browser || true
+    printf '%s\n' "$url"
+    ;;
+  *)
+    printf '%s\n' "$url"
+    ;;
+esac

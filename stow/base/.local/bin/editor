@@ -11,4 +11,4 @@ if [ -z "$editor_id" ]; then
   exit 1
 fi
 
-exec /usr/bin/gtk-launch "$editor_id"
+exec /usr/bin/gtk-launch "$editor_id" "$@"

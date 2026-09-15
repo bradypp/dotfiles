@@ -29,6 +29,22 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 
 alias fz="fzf --style minimal \
     --preview '/usr/share/fzf/fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
+alias fzkeys="printf '%s\n' 'Ctrl-T  pick files, insert onto command line' 'Alt-C   fuzzy cd into a directory' 'Ctrl-R  fuzzy history search (atuin, loaded below)' '' 'Picker keys: fzf --help'"
+
+# fzf widgets: Ctrl-T files, Alt-C cd. Sourced before atuin so atuin keeps Ctrl-R.
+[ -r /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
+fzi() {
+  local sel
+  sel=$(fd -H . ~ | fz) || return
+  if [[ -n $WIDGET ]]; then
+    LBUFFER="${LBUFFER}${(q)sel} "
+  else
+    print -z "${(q)sel} "
+  fi
+}
+zle -N fzi
+bindkey '^T' fzi
+
 
 # Uncomment the following line to use hyphen-insensitive completion.
 # Case-sensitive completion must be off. _ and - will be interchangeable.
