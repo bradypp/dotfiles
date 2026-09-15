@@ -26,6 +26,20 @@ dotfiles_resolve_context() {
     DOTFILES_SETUP_DIRS=(base)
     DOTFILES_MACHINE_CONFIG=''
 
+    # Distro layers mirror packages/install: Arch is the shared base,
+    # CachyOS stacks its own additions on top. Guarded on directory
+    # existence so the folders are optional until they gain content.
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+    fi
+    if [[ -d $DOTFILES_REPO/stow/arch ]] && [[ ${ID_LIKE:-} == *arch* || ${ID:-} == arch ]]; then
+        _dotfiles_append_unique DOTFILES_STOW_PACKAGES arch
+    fi
+    if [[ -d $DOTFILES_REPO/stow/cachyos ]] && [[ ${ID:-} == cachyos ]]; then
+        _dotfiles_append_unique DOTFILES_STOW_PACKAGES cachyos
+    fi
+
     if [[ ${DOTFILES_SESSION_TYPE,,} == wayland ]]; then
         _dotfiles_append_unique DOTFILES_SETUP_DIRS wayland
     fi

@@ -1,0 +1,64 @@
+#!/bin/sh
+# Fuzzy-find packages and install them: repo packages by default, AUR with -a.
+# Usage: pkg [--aur|-a] [query...]   (Tab marks, Enter installs)
+set -eu
+
+usage() {
+  printf '%s\n' 'Usage: pkg [--aur|-a|--flatpak|-f] [query...]' >&2
+}
+
+backend=repo
+case ${1-} in
+  -a|--aur) backend=aur; shift ;;
+  -f|--flatpak) backend=flatpak; shift ;;
+  -h|--help) usage; exit 0 ;;
+esac
+
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+  printf '%s\n' 'pkg needs an interactive terminal.' >&2
+  exit 2
+fi
+
+if [ "$backend" = aur ]; then
+  command -v jq >/dev/null 2>&1 || {
+    printf '%s\n' 'pkg --aur needs jq.' >&2
+    exit 1
+  }
+  [ $# -gt 0 ] || { printf '%s\n' 'pkg --aur needs a search query.' >&2; usage; exit 2; }
+  names=$(shelly search aur -j "$@" | jq -r '.[] | "\(.Name)\t\(.Version)\t\(.Description // "")"' \
+    | fzf -m --delimiter='\t' --with-nth=1,2,3 --prompt='aur> ' \
+    | cut -f1) || exit $?
+  [ -n "$names" ] || exit 0
+  # shellcheck disable=SC2086
+  printf 'Installing from AUR: %s\n' "$names"
+  # shellcheck disable=SC2086
+  exec shelly install aur $names
+elif [ "$backend" = flatpak ]; then
+  command -v jq >/dev/null 2>&1 || {
+    printf '%s\n' 'pkg --flatpak needs jq.' >&2
+    exit 1
+  }
+  [ $# -gt 0 ] || { printf '%s\n' 'pkg --flatpak needs a search query.' >&2; usage; exit 2; }
+  ids=$(shelly search flatpak -j "$@" | jq -r '.hits[] | "\(.app_id)\t\(.name)\t\(.remote)\t\(.summary // "")"' \
+    | fzf -m --delimiter='\t' --with-nth=1,2,3,4 --prompt='flatpak> ' \
+    | cut -f1) || exit $?
+  [ -n "$ids" ] || exit 0
+  # shellcheck disable=SC2086
+  printf 'Installing flatpak: %s\n' "$ids"
+  # shellcheck disable=SC2086
+  exec shelly install flatpak $ids
+else
+  if [ $# -gt 0 ]; then
+    list=$(pacman -Ssq "$@" | awk '!seen[$0]++') || exit $?
+  else
+    list=$(pacman -Slq | awk '!seen[$0]++') || exit $?
+  fi
+  # shellcheck disable=SC2086
+  picks=$(printf '%s\n' "$list" | fzf -m --prompt='pkg> ' \
+    --preview 'pacman -Si {} 2>/dev/null | head -n 12') || exit $?
+  [ -n "$picks" ] || exit 0
+  # shellcheck disable=SC2086
+  printf 'Installing: %s\n' "$picks"
+  # shellcheck disable=SC2086
+  exec sudo pacman -S -- $picks
+fi

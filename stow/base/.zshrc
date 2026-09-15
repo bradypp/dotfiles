@@ -27,23 +27,35 @@ ZSH_THEME="powerlevel10k/powerlevel10k"
 # Uncomment the following line to use case-sensitive completion.
 # CASE_SENSITIVE="true"
 
-alias fz="fzf --style minimal \
-    --preview '/usr/share/fzf/fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
-alias fzkeys="printf '%s\n' 'Ctrl-T  pick files, insert onto command line' 'Alt-C   fuzzy cd into a directory' 'Ctrl-R  fuzzy history search (atuin, loaded below)' '' 'Picker keys: fzf --help'"
-
-# fzf widgets: Ctrl-T files, Alt-C cd. Sourced before atuin so atuin keeps Ctrl-R.
+# fzf widgets: Ctrl-T files, Alt-C cd, Ctrl-R history.
 [ -r /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
+export FZF_DEFAULT_OPTS='--style minimal --ansi --bind "alt-c:execute-silent(editor {} >/dev/null 2>&1 &)+abort,alt-f:execute-silent(open-filemanager {} >/dev/null 2>&1 &)+abort,alt-t:execute-silent(term-in {} >/dev/null 2>&1 &)+abort,alt-n:become(nvim {} </dev/tty >/dev/tty 2>&1)"'
+alias fzkeys="printf '%s\n' 'Enter     default action' 'Alt-C     open in editor' 'Alt-F    open in file manager' 'Alt-T     new terminal here' 'Alt-I    insert path, no run (shell pickers only)' 'Alt-N    edit in nvim' '' 'Picker keys: fzf --help'"
+
+# Shared fzf styling and global action keys, inherited by every picker.
+# Explicit CLI flags still win over these.
+alias fz="fzf --walker=file,dir \
+    --preview 'fz-preview {}' --bind 'focus:transform-header:file --brief {}'"
+
 fzi() {
-  local sel
-  sel=$(fd -H . ~ | fz) || return
-  if [[ -n $WIDGET ]]; then
-    LBUFFER="${LBUFFER}${(q)sel} "
-  else
-    print -z "${(q)sel} "
+  local out key sel
+  out=$(fd -H . ~ 2>/dev/null | fz --expect=alt-i) || return
+  key=$(print -r -- "$out" | sed -n 1p)
+  sel=$(print -r -- "$out" | sed -n 2p)
+  [[ -n $sel ]] || return 0
+  if [[ $key == alt-i ]]; then
+    if [[ -n $WIDGET ]]; then LBUFFER+="${(q)sel} "
+    else print -z "${(q)sel} "; fi
+    return 0
   fi
+  if [[ -n $WIDGET ]]; then LBUFFER+="${(q)sel} "
+  else print -z "${(q)sel} "; fi
 }
 zle -N fzi
 bindkey '^T' fzi
+
+# repo() must live in the shell (not a script) so `cd` lands in this terminal.
+[ -r "$HOME/.config/zsh/repo.zsh" ] && source "$HOME/.config/zsh/repo.zsh"
 
 
 # Uncomment the following line to use hyphen-insensitive completion.
@@ -180,5 +192,11 @@ export NVM_DIR="$HOME/.config/nvm"
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 eval "$(mise activate zsh)"
-
+# # 
 eval "$(atuin init zsh)"
+eval "$(zoxide init zsh)"
+
+# Last-writer-wins: fzf history search on Ctrl-R in every keymap.
+# bindkey -M emacs '^R' fzf-history-widget
+# bindkey -M vicmd '^R' fzf-history-widget
+# bindkey -M viins '^R' fzf-history-widget

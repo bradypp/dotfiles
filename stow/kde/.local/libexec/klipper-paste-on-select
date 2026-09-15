@@ -2,27 +2,68 @@
 # Paste after selecting a non-current Klipper history entry on KDE Wayland.
 set -u
 
+readonly LOCK_FILE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/klipper-paste-on-select.lock"
+exec 9>"$LOCK_FILE" || exit 1
+/usr/bin/flock -n 9 || { printf 'klipper-paste-on-select: another instance is running\n' >&2; exit 0; }
+
+readonly UPDATE_STAMP="$(/usr/bin/mktemp -t klipper-paste-on-select.XXXXXX)"
+trap '/usr/bin/rm -f "$UPDATE_STAMP"; kill "$MONITOR_PID" 2>/dev/null' EXIT
+/usr/bin/date +%s%N >"$UPDATE_STAMP" 2>/dev/null || printf '0' >"$UPDATE_STAMP"
+
 is_klipper_popup() {
     [[ "$1" == "Clipboard Popup" || "$1" == "plasmashell" ]]
 }
 
-/usr/bin/dbus-monitor "sender='org.kde.klipper',interface='org.kde.klipper.klipper'" |
+paste_once() {
+    local now last_paste
+    now=$(/usr/bin/date +%s%N)
+    last_paste=${LAST_PASTE:-0}
+    # Debounce: skip if a paste fired within ~500ms (covers update + close firing together).
+    if (( now - last_paste < 500000000 )); then
+        return 0
+    fi
+    LAST_PASTE=$now
+    # Let the destination process the restored clipboard offer, then Paste (Shift+Insert).
+    /usr/bin/sleep 0.1
+    /usr/bin/ydotool key 42:1 110:1 110:0 42:0
+}
+
+# Background: record history updates; reselecting the current item emits none,
+# so the main loop also pastes on popup-close with no update (Esc is a known false-positive).
+/usr/bin/dbus-monitor "sender='org.kde.klipper'" "sender='org.kde.plasma.clipboard'" 2>/dev/null |
 while IFS= read -r line; do
     [[ "$line" == *clipboardHistoryUpdated* ]] || continue
+    /usr/bin/date +%s%N >"$UPDATE_STAMP" 2>/dev/null || true
+done &
+MONITOR_PID=$!
 
-    window_name=$(/usr/bin/kdotool getactivewindow getwindowname 2>/dev/null) || continue
-    is_klipper_popup "$window_name" || continue
+LAST_PASTE=0
+in_popup=0
+popup_start=0
+stamp_at_open=0
 
-    # Wait, with a timeout, for focus to leave Klipper.
-    for _ in {1..30}; do
+while true; do
+    window_name=$(/usr/bin/kdotool getactivewindow getwindowname 2>/dev/null) || window_name=
+    if is_klipper_popup "$window_name"; then
+        if (( in_popup == 0 )); then
+            in_popup=1
+            popup_start=$(/usr/bin/date +%s%N)
+            stamp_at_open=$(/usr/bin/cat "$UPDATE_STAMP" 2>/dev/null || printf '0')
+        fi
         /usr/bin/sleep 0.1
-        window_name=$(/usr/bin/kdotool getactivewindow getwindowname 2>/dev/null) || window_name=
-        is_klipper_popup "$window_name" || break
-    done
+        continue
+    fi
 
-    is_klipper_popup "$window_name" && continue
-
-    # Let the destination process the restored clipboard offer, then Paste.
-    /usr/bin/sleep 0.05
-    /usr/bin/ydotool key 42:1 110:1 110:0 42:0
+    if (( in_popup == 1 )); then
+        in_popup=0
+        stamp_now=$(/usr/bin/cat "$UPDATE_STAMP" 2>/dev/null || printf '0')
+        # Paste only on a real history update (clicked older entry).
+        # Reselecting the already-current first entry emits no update, so it
+        # intentionally does not paste yet — close-detection can't tell
+        # Esc from a first-item click.
+        if [[ "$stamp_now" != "$stamp_at_open" ]]; then
+            paste_once
+        fi
+    fi
+    /usr/bin/sleep 0.1
 done

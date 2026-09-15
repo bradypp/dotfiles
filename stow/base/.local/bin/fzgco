@@ -1,0 +1,15 @@
+#!/bin/sh
+# Fuzzy-checkout a git branch.
+# Usage: fzgco   (fzf picker with recent-commit preview, Enter checks out)
+set -eu
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+  printf '%s\n' 'Not in a git repository.' >&2
+  exit 1
+}
+
+b=$(git branch --format='%(refname:short)' | fzf --prompt='checkout> ' \
+  --preview 'git log --color=always --oneline -15 {}') || exit $?
+[ -n "$b" ] || exit 0
+
+exec git checkout "$b"

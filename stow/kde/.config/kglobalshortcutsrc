@@ -264,7 +264,6 @@ activate widget 23=none,none,Activate Panel Widget
 activate widget 247=Alt+F1,none,Activate Application Launcher Widget
 activate widget 275=Alt+F1,none,Activate Application Launcher Widget
 activate widget 28=none,none,Activate System Tray Widget
-activate widget 29=none,none,Activate Pager Widget
 activate widget 322=Alt+F1,none,Activate Application Launcher Widget
 activate widget 348=Alt+F1,none,Activate Application Launcher Widget
 activate widget 374=Alt+F1,none,Activate Application Launcher Widget
@@ -272,6 +271,7 @@ activate widget 4=Alt+F1,none,Activate Application Launcher Widget
 activate widget 455=none,none,Activate Digital Clock Widget
 activate widget 53=none,none,Activate Clipboard Widget
 activate widget 57=none,none,Activate Digital Clock Widget
+activate widget 60=none,none,Activate Clipboard Widget
 activate widget 63=none,none,Activate Digital Clock Widget
 activate widget 67=none,none,Activate Icons-Only Task Manager Widget
 activate widget 74=Alt+F1,none,Activate Application Launcher Widget
@@ -288,7 +288,7 @@ previous activity=Meta+Shift+A,none,Walk through activities (Reverse)
 repeat_action=none,none,Manually Invoke Action on Current Clipboard
 show dashboard=Ctrl+F12,Ctrl+F12,Show Desktop
 show-barcode=none,none,Show Barcode…
-show-on-mouse-pos=none,Meta+V,Show Clipboard Items at Mouse Position
+show-on-mouse-pos=Meta+V,Meta+V,Show Clipboard Items at Mouse Position
 switch to next activity=none,none,Switch to Next Activity
 switch to previous activity=none,none,Switch to Previous Activity
 toggle do not disturb=none,none,Toggle do not disturb
@@ -303,7 +303,7 @@ _launch=Meta+Shift+Z
 _launch=Meta+Shift+Q
 
 [services][net.local.copyq.desktop]
-_launch=Meta+V
+_launch=none
 
 [services][net.local.editor.desktop]
 _launch=Meta+C

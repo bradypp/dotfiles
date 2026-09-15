@@ -1,0 +1,12 @@
+#!/bin/sh
+# Shared fzf preview: directory listing for directories, file preview otherwise.
+# Usage: fz-preview <path>   (called as `--preview 'fz-preview {}'`)
+set -eu
+
+[ $# -eq 1 ] || { printf 'Usage: fz-preview <path>\n' >&2; exit 2; }
+
+if [ -d "$1" ]; then
+  exec eza -la --group-directories-first --color=always -- "$1"
+else
+  exec /usr/share/fzf/fzf-preview.sh "$1"
+fi

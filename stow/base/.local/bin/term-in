@@ -1,0 +1,18 @@
+#!/bin/sh
+# Open a new terminal window working in the given directory (or a file's parent).
+# Usage: term-in <dir-or-file>
+set -eu
+
+[ $# -eq 1 ] || { printf 'Usage: term-in <dir-or-file>\n' >&2; exit 2; }
+if [ -d "$1" ]; then
+  dir=$1
+elif [ -e "$1" ]; then
+  dir=$(dirname -- "$1")
+else
+  printf 'Not found: %s\n' "$1" >&2
+  exit 1
+fi
+
+qdir=$(printf '%s' "$dir" | sed "s/'/'\\\\''/g")
+exec "$HOME/.local/bin/open-terminal" /usr/bin/zsh -lic \
+  'cd '"'$qdir'"' && exec /usr/bin/zsh -l' zsh
