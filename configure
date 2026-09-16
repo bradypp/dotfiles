@@ -39,6 +39,9 @@ for setup_dir in "${DOTFILES_SETUP_DIRS[@]}"; do
         "$setup_script"
     done
 done
+if [[ -n $DOTFILES_MACHINE_CONFIG && -x $DOTFILES_REPO/setup/storage ]]; then
+    "$DOTFILES_REPO/setup/storage" "$DOTFILES_MACHINE_CONFIG"
+fi
 if [[ -n $DOTFILES_MACHINE_CONFIG && -x $DOTFILES_REPO/setup/hardware ]]; then
     "$DOTFILES_REPO/setup/hardware" "$DOTFILES_MACHINE_CONFIG"
 fi

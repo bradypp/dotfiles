@@ -12,7 +12,6 @@ Ideas intentionally deferred to keep this personal repository small. Implement a
 
 ## Machine configuration
 
-- Configure stable automounting for the Vorta drive after choosing KDE automount, `/etc/fstab`, or systemd mount units.
 - Add more monitors, drives, power settings, or peripherals only when a script needs them.
 - Add another named machine only when it needs machine-specific values.
 

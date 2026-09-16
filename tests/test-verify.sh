@@ -9,13 +9,13 @@ fixture="$tmp/repo"; home="$tmp/home"; bin="$tmp/bin"
 mkdir -p "$fixture/stow/base" "$fixture/stow/kde/.config" "$fixture/machines" "$home" "$bin" "$tmp/applications"
 printf base >"$fixture/stow/base/.base"
 printf kde >"$fixture/stow/kde/.kde"
-printf 'hdr_output=HDMI-A-1\nvorta_drive_uuid=1C54FDAF54FD8C30\nvorta_mount_point=/run/media/paul/Local Disk\n' >"$fixture/machines/home-pc.conf"
+printf 'hdr_output=HDMI-A-1\ndisk3_uuid=1C54FDAF54FD8C30\ndisk3_mount=/mnt/disk3\n' >"$fixture/machines/home-pc.conf"
 printf '[Desktop Entry]\nName=Kitty\n' >"$tmp/applications/kitty.desktop"
 printf '#!/usr/bin/bash\nprintf "kitty.desktop\\n"\n' >"$bin/kreadconfig6"
 printf '#!/usr/bin/bash\ncase $1 in version) exit 0;; config) printf "true\\n";; eval) printf "true\\n";; esac\n' >"$bin/copyq"
 printf '#!/usr/bin/bash\ncase $1 in --print-id) echo kitty.desktop;; --print-path) echo /usr/share/applications/kitty.desktop;; --print-cmd) echo kitty;; esac\n' >"$bin/xdg-terminal-exec"
 printf '#!/usr/bin/bash\nprintf "\\033[01;32mOutput: \\033[0;0m1 HDMI-A-1 id\\n\\tHDR: disabled\\n"\n' >"$bin/kscreen-doctor"
-printf '#!/usr/bin/bash\nprintf "sdc2 Local Disk 1C54FDAF54FD8C30 ntfs 10.9T /run/media/paul/Local Disk\\n"\n' >"$bin/lsblk"
+printf '#!/usr/bin/bash\nprintf "sdc2 disk3 1C54FDAF54FD8C30 ntfs 10.9T /mnt/disk3\\n"\n' >"$bin/lsblk"
 printf '#!/usr/bin/bash\nexit 0\n' >"$bin/vorta"
 printf '#!/usr/bin/bash\nexit 0\n' >"$bin/borg"
 printf '#!/usr/bin/bash\n[[ " $* " == *" --mountpoint "* ]] && [[ ${FINDMNT_OK:-1} == 1 ]]\n' >"$bin/findmnt"
@@ -31,7 +31,7 @@ assert_contains "$out" 'context: PASS (kde / home-pc)'
 assert_contains "$out" 'stow: PASS (2 links; base kde)'
 assert_contains "$out" 'terminal: PASS (kitty.desktop)'
 assert_contains "$out" 'copyq: PASS (Wayland paste support)'
-assert_contains "$out" 'hardware: PASS (HDR output; Vorta drive)'
+assert_contains "$out" 'hardware: PASS (HDR output; machine drives)'
 assert_contains "$out" 'result: PASS'
 pass 'verify checks complete composition without changing state'
 
@@ -52,7 +52,7 @@ assert_contains "$out" 'terminal: PASS (kitty.desktop)'
 [[ $out != *'copyq: PASS'* ]] || fail 'KDE X11 verification checked Wayland-only CopyQ setup'
 pass 'verify checks KDE independently and finds user desktop entries'
 
-printf 'hdr_output=HDMI-A-1\nvorta_drive_uuid=UUID-A\nvorta_mount_point=/mnt/vorta\n' >"$fixture/machines/home-pc.conf"
+printf 'hdr_output=HDMI-A-1\ndisk1_uuid=UUID-A\ndisk1_mount=/mnt/vorta\n' >"$fixture/machines/home-pc.conf"
 printf '#!/usr/bin/bash\nprintf "sda UUID-A /mnt/other\\nsdb UUID-B /mnt/vorta\\n"\n' >"$bin/lsblk"
 chmod +x "$bin/lsblk"
 if HOME="$home" XDG_STATE_HOME="$tmp/state" PATH="$bin:$PATH" FINDMNT_OK=0 DOTFILES_REPO="$fixture" DOTFILES_CURRENT_DESKTOP=KDE DOTFILES_SESSION_TYPE=wayland "$repo/verify" >"$tmp/out" 2>"$tmp/error"; then

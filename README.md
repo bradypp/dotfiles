@@ -92,10 +92,12 @@ The usual maintenance cycle is `./deploy`, `./verify`, then `./tests/run`.
 The selected machine is saved in `~/.local/state/dotfiles/machine`. `machines/home-pc.conf` currently contains only:
 
 - the KScreen output used by `hdr`;
-- the filesystem UUID of the drive Vorta needs;
-- its expected mount point.
+- the filesystem UUIDs of the data drives (`disk1`, `disk2`, `disk3`);
+- their expected mount points under `/mnt`.
 
-`setup/hardware` confirms those values. It does not mount drives, edit `/etc/fstab`, modify Vorta, unlock Borg repositories, or run backups.
+Drives are additive: a machine without a drive simply omits its keys, and the scripts skip it.
+
+`setup/hardware` confirms those values. It does not mount drives, edit `/etc/fstab`, modify Vorta, unlock Borg repositories, or run backups. `setup/storage MACHINE_CONFIG` applies the declared drives (it prompts for sudo): it backs up `/etc/fstab`, adds missing UUID entries (ntfs3, `nofail`), mounts them, and verifies them. `configure` runs it for the selected machine before `setup/hardware`, so validation sees the mounts; it is also safe to run by hand. It leaves machines without declared drives alone.
 
 ## Managing Stow files
 

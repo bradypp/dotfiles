@@ -124,18 +124,27 @@ verify_copyq() {
 }
 
 verify_hardware() {
-    local hdr_output= vorta_drive_uuid= vorta_mount_point= line key value outputs
+    local hdr_output= disk1_uuid= disk1_mount= disk2_uuid= disk2_mount= disk3_uuid= disk3_mount=
+    local line key value outputs drive uuid_var mount_var
     while IFS= read -r line || [[ -n $line ]]; do
         [[ -z $line || $line == \#* ]] && continue
         key=${line%%=*}; value=${line#*=}
         case $key in
-            hdr_output|vorta_drive_uuid|vorta_mount_point) printf -v "$key" '%s' "$value" ;;
+            hdr_output|disk1_uuid|disk1_mount|disk2_uuid|disk2_mount|disk3_uuid|disk3_mount)
+                printf -v "$key" '%s' "$value" ;;
             *) fail_check hardware "unknown machine key: $key" ;;
         esac
     done <"$DOTFILES_MACHINE_CONFIG"
 
-    [[ -n $hdr_output && -n $vorta_drive_uuid && $vorta_mount_point == /* ]] ||
+    [[ -n $hdr_output ]] ||
         fail_check hardware "incomplete machine configuration: $DOTFILES_MACHINE_CONFIG"
+    for drive in disk1 disk2 disk3; do
+        uuid_var=${drive}_uuid; mount_var=${drive}_mount
+        if [[ -n ${!uuid_var} || -n ${!mount_var} ]]; then
+            [[ -n ${!uuid_var} && ${!uuid_var} != /dev/* && ${!mount_var} == /* ]] ||
+                fail_check hardware "incomplete $drive configuration: $DOTFILES_MACHINE_CONFIG"
+        fi
+    done
     require_command hardware kscreen-doctor
     require_command hardware findmnt
     require_command hardware vorta
@@ -145,9 +154,17 @@ verify_hardware() {
     printf '%s\n' "$outputs" | awk -v out="$hdr_output" \
         '$1 == "Output:" && $3 == out { found=1 } END { exit !found }' ||
         fail_check hardware "configured HDR output not found: $hdr_output"
-    findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --mountpoint "$vorta_mount_point" >/dev/null ||
-        fail_check hardware "Vorta drive $vorta_drive_uuid is not mounted at $vorta_mount_point"
-    pass_check hardware 'HDR output; Vorta drive'
+    check_drive() {
+        findmnt --noheadings --raw --source "UUID=$1" --mountpoint "$2" >/dev/null ||
+            fail_check hardware "drive $1 is not mounted at $2"
+    }
+    for drive in disk1 disk2 disk3; do
+        uuid_var=${drive}_uuid; mount_var=${drive}_mount
+        if [[ -n ${!uuid_var} ]]; then
+            check_drive "${!uuid_var}" "${!mount_var}"
+        fi
+    done
+    pass_check hardware 'HDR output; machine drives'
 }
 
 context=base

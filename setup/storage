@@ -1,0 +1,108 @@
+#!/usr/bin/bash
+# Mount this machine's data drives at stable paths via /etc/fstab (ntfs3).
+# Usage: setup/storage MACHINE_CONFIG
+# configure runs it for the selected machine before setup/hardware;
+# it is also safe to run by hand. Prompts for sudo for privileged steps.
+# backs up /etc/fstab before changing it, adds missing UUID entries,
+# then mounts and verifies every declared drive. Machines without
+# declared drives exit quietly with nothing to do.
+set -euo pipefail
+
+(($# == 1)) || { printf '%s\n' 'Usage: setup/storage MACHINE_CONFIG' >&2; exit 2; }
+config=$1
+[[ -f $config ]] || { printf 'Missing machine configuration: %s\n' "$config" >&2; exit 1; }
+
+hdr_output=
+disk1_uuid=; disk1_mount=
+disk2_uuid=; disk2_mount=
+disk3_uuid=; disk3_mount=
+declare -A seen=()
+while IFS= read -r line || [[ -n $line ]]; do
+    [[ -z $line || $line == \#* ]] && continue
+    [[ $line == *=* ]] || { printf 'Invalid machine line: %s\n' "$line" >&2; exit 1; }
+    key=${line%%=*}
+    value=${line#*=}
+    case $key in
+        hdr_output|disk1_uuid|disk1_mount|disk2_uuid|disk2_mount|disk3_uuid|disk3_mount) ;;
+        *) printf 'Unknown machine key: %s\n' "$key" >&2; exit 1 ;;
+    esac
+    [[ ! ${seen[$key]+set} ]] || { printf 'Duplicate machine key: %s\n' "$key" >&2; exit 1; }
+    seen[$key]=1
+    printf -v "$key" '%s' "$value"
+done <"$config"
+
+valid_drive() {
+    [[ -n $1 && $1 != /dev/* && $1 != *[[:space:]]* ]] || return 1
+    [[ $2 == /* ]] || return 1
+}
+pairs=()
+drive=; uuid_var=; mount_var=
+for drive in disk1 disk2 disk3; do
+    uuid_var=${drive}_uuid; mount_var=${drive}_mount
+    if [[ -n ${!uuid_var} || -n ${!mount_var} ]]; then
+        valid_drive "${!uuid_var}" "${!mount_var}" || {
+            printf 'Invalid %s drive; %s_uuid needs a filesystem UUID and %s_mount an absolute path\n' \
+                "$drive" "$drive" "$drive" >&2; exit 1
+        }
+        pairs+=("${!uuid_var}|${!mount_var}")
+    fi
+done
+
+if ((${#pairs[@]} == 0)); then
+    printf '%s\n' 'No drives declared; nothing to do.'
+    exit 0
+fi
+
+owner=${SUDO_USER:-$(id -un)}
+uid=$(id -u "$owner"); gid=$(id -g "$owner")
+printf 'Mounting %d drive(s) for %s (uid=%s gid=%s)\n' "${#pairs[@]}" "$owner" "$uid" "$gid"
+
+backed_up=
+backup_fstab() {
+    [[ -n $backed_up ]] && return 0
+    ts=$(date +%Y%m%d-%H%M%S)
+    sudo cp -a /etc/fstab "/etc/fstab.bak-$ts"
+    backed_up=1
+    printf 'Backed up /etc/fstab to /etc/fstab.bak-%s\n' "$ts"
+}
+
+for pair in "${pairs[@]}"; do
+    uuid=${pair%%|*}; mount=${pair#*|}
+    lsblk --noheadings --output UUID | grep -qi "^${uuid}$" || {
+        printf 'Configured drive not found: %s (connect it, then re-run)\n' "$uuid" >&2; exit 1
+    }
+    if current=$(findmnt --noheadings --raw --source "UUID=$uuid" --output TARGET 2>/dev/null); then
+        if [[ $current != "$mount" ]]; then
+            printf 'Unmounting %s (remounts at %s)\n' "$current" "$mount"
+            dev=$(readlink -f "/dev/disk/by-uuid/$uuid")
+            udisksctl unmount -b "$dev" 2>/dev/null || sudo umount "$current"
+        fi
+    fi
+    sudo mkdir -p "$mount"
+    if ! grep -q "UUID=$uuid" /etc/fstab; then
+        backup_fstab
+        # shellcheck disable=SC2024
+        printf 'UUID=%s %s ntfs3 uid=%s,gid=%s,rw,nofail,dmask=022,fmask=133,iocharset=utf8 0 0\n' \
+            "$uuid" "$mount" "$uid" "$gid" | sudo tee -a /etc/fstab >/dev/null
+        printf 'Added fstab entry: %s at %s\n' "$uuid" "$mount"
+    else
+        printf 'fstab entry present: %s at %s\n' "$uuid" "$mount"
+    fi
+done
+
+sudo systemctl daemon-reload
+sudo mount -a || {
+    printf '%s\n' 'mount -a failed; diagnose before rebooting (use the fstab backup above).' >&2
+    exit 1
+}
+
+for pair in "${pairs[@]}"; do
+    uuid=${pair%%|*}; mount=${pair#*|}
+    findmnt --noheadings --raw --source "UUID=$uuid" --mountpoint "$mount" >/dev/null || {
+        printf 'Drive %s is not mounted at %s\n' "$uuid" "$mount" >&2; exit 1
+    }
+    probe="$mount/.write-test-$owner"
+    sudo -u "$owner" touch "$probe" && rm -- "$probe"
+    printf '%s OK (%s read/write)\n' "$mount" "$owner"
+done
+printf '%s\n' 'Storage ready.'

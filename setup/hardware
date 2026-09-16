@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# Confirm the one HDR output and one drive needed by Vorta.
+# Confirm the HDR output and data drives declared by this machine.
 set -euo pipefail
 
 (($# == 1)) || { printf '%s\n' 'Usage: setup/hardware MACHINE_CONFIG' >&2; exit 2; }
@@ -7,12 +7,16 @@ config=$1
 [[ -f $config ]] || { printf 'Missing machine configuration: %s\n' "$config" >&2; exit 1; }
 
 hdr_output=
-vorta_drive_uuid=
-vorta_mount_point=
+disk1_uuid=; disk1_mount=
+disk2_uuid=; disk2_mount=
+disk3_uuid=; disk3_mount=
 declare -A seen=()
 read_config() {
     local line key value
-    hdr_output= vorta_drive_uuid= vorta_mount_point=
+    hdr_output=
+    disk1_uuid=; disk1_mount=
+    disk2_uuid=; disk2_mount=
+    disk3_uuid=; disk3_mount=
     seen=()
     while IFS= read -r line || [[ -n $line ]]; do
         [[ -z $line || $line == \#* ]] && continue
@@ -20,7 +24,7 @@ read_config() {
         key=${line%%=*}
         value=${line#*=}
         case $key in
-            hdr_output|vorta_drive_uuid|vorta_mount_point) ;;
+            hdr_output|disk1_uuid|disk1_mount|disk2_uuid|disk2_mount|disk3_uuid|disk3_mount) ;;
             *) printf 'Unknown machine key: %s\n' "$key" >&2; return 1 ;;
         esac
         [[ ! ${seen[$key]+set} ]] || { printf 'Duplicate machine key: %s\n' "$key" >&2; return 1; }
@@ -29,12 +33,23 @@ read_config() {
     done <"$config"
 }
 
+valid_drive() {
+    [[ -n $1 && $1 != /dev/* && $1 != *[[:space:]]* ]] || return 1
+    [[ $2 == /* ]] || return 1
+}
+
 validate() {
     [[ -n $hdr_output && $hdr_output != *[[:space:]]* ]] || { printf '%s\n' 'Invalid or missing hdr_output' >&2; return 1; }
-    [[ -n $vorta_drive_uuid && $vorta_drive_uuid != /dev/* && $vorta_drive_uuid != *[[:space:]]* ]] || {
-        printf '%s\n' 'Invalid or missing vorta_drive_uuid; use a filesystem UUID' >&2; return 1
-    }
-    [[ $vorta_mount_point == /* ]] || { printf '%s\n' 'vorta_mount_point must be absolute' >&2; return 1; }
+    local drive uuid_var mount_var
+    for drive in disk1 disk2 disk3; do
+        uuid_var=${drive}_uuid; mount_var=${drive}_mount
+        if [[ -n ${!uuid_var} || -n ${!mount_var} ]]; then
+            valid_drive "${!uuid_var}" "${!mount_var}" || {
+                printf 'Invalid %s drive; %s_uuid needs a filesystem UUID and %s_mount an absolute path\n' \
+                    "$drive" "$drive" "$drive" >&2; return 1
+            }
+        fi
+    done
 }
 
 read_config
@@ -43,23 +58,33 @@ interactive=${DOTFILES_INTERACTIVE:-}
 if [[ $interactive == 1 ]]; then
     command -v kscreen-doctor >/dev/null && kscreen-doctor -o || true
     lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS
-    printf 'Change the saved monitor or Vorta drive? [y/N] '
+    printf 'Change the saved monitor or drives? [y/N] '
     read -r answer
     if [[ $answer == [yY] || $answer == [yY][eE][sS] ]]; then
         read -r -p "HDR output [$hdr_output]: " new_hdr
-        read -r -p "Vorta drive UUID [$vorta_drive_uuid]: " new_uuid
-        read -r -p "Vorta mount point [$vorta_mount_point]: " new_mount
+        read -r -p "disk1 UUID [$disk1_uuid]: " new_disk1_uuid
+        read -r -p "disk1 mount [$disk1_mount]: " new_disk1_mount
+        read -r -p "disk2 UUID [$disk2_uuid]: " new_disk2_uuid
+        read -r -p "disk2 mount [$disk2_mount]: " new_disk2_mount
+        read -r -p "disk3 UUID [$disk3_uuid]: " new_disk3_uuid
+        read -r -p "disk3 mount [$disk3_mount]: " new_disk3_mount
         hdr_output=${new_hdr:-$hdr_output}
-        vorta_drive_uuid=${new_uuid:-$vorta_drive_uuid}
-        vorta_mount_point=${new_mount:-$vorta_mount_point}
+        disk1_uuid=${new_disk1_uuid:-$disk1_uuid}
+        disk1_mount=${new_disk1_mount:-$disk1_mount}
+        disk2_uuid=${new_disk2_uuid:-$disk2_uuid}
+        disk2_mount=${new_disk2_mount:-$disk2_mount}
+        disk3_uuid=${new_disk3_uuid:-$disk3_uuid}
+        disk3_mount=${new_disk3_mount:-$disk3_mount}
         validate
         printf 'Save these values? [y/N] '
         read -r answer
         [[ $answer == [yY] || $answer == [yY][eE][sS] ]] || { printf '%s\n' 'Hardware setup skipped.'; exit 0; }
         tmp=$(mktemp "${config}.tmp.XXXXXX")
         trap 'rm -f -- "${tmp:-}"' EXIT
-        printf 'hdr_output=%s\nvorta_drive_uuid=%s\nvorta_mount_point=%s\n' \
-            "$hdr_output" "$vorta_drive_uuid" "$vorta_mount_point" >"$tmp"
+        printf 'hdr_output=%s\ndisk1_uuid=%s\ndisk1_mount=%s\ndisk2_uuid=%s\ndisk2_mount=%s\ndisk3_uuid=%s\ndisk3_mount=%s\n' \
+            "$hdr_output" \
+            "$disk1_uuid" "$disk1_mount" "$disk2_uuid" "$disk2_mount" \
+            "$disk3_uuid" "$disk3_mount" >"$tmp"
         mv -- "$tmp" "$config"
         trap - EXIT
     fi
@@ -72,10 +97,19 @@ printf '%s\n' "$kscreen" | awk -v out="$hdr_output" '$1 == "Output:" && $3 == ou
     exit 1
 }
 blocks=$(lsblk --output NAME,LABEL,UUID,FSTYPE,SIZE,MOUNTPOINTS)
-[[ $blocks == *"$vorta_drive_uuid"* ]] || { printf 'Configured Vorta drive not found: %s\n' "$vorta_drive_uuid" >&2; exit 1; }
-findmnt --noheadings --raw --source "UUID=$vorta_drive_uuid" --mountpoint "$vorta_mount_point" >/dev/null || {
-    printf 'Vorta drive %s is not mounted at %s\n' "$vorta_drive_uuid" "$vorta_mount_point" >&2
-    exit 1
+check_drive() {
+    [[ $blocks == *"$1"* ]] || { printf 'Configured drive not found: %s\n' "$1" >&2; exit 1; }
+    findmnt --noheadings --raw --source "UUID=$1" --mountpoint "$2" >/dev/null || {
+        printf 'Drive %s is not mounted at %s\n' "$1" "$2" >&2
+        exit 1
+    }
 }
 printf 'HDR output: %s\n' "$hdr_output"
-printf 'Vorta drive: %s at %s\n' "$vorta_drive_uuid" "$vorta_mount_point"
+drive=; uuid_var=; mount_var=
+for drive in disk1 disk2 disk3; do
+    uuid_var=${drive}_uuid; mount_var=${drive}_mount
+    if [[ -n ${!uuid_var} ]]; then
+        check_drive "${!uuid_var}" "${!mount_var}"
+        printf 'Drive %s: %s at %s\n' "$drive" "${!uuid_var}" "${!mount_var}"
+    fi
+done
