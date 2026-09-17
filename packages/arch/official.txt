@@ -30,10 +30,13 @@ diffutils
 dmidecode
 dmraid
 dnsmasq
+docker
+docker-compose
 dolphin
 dosfstools
 duf
 e2fsprogs
+easyeffects
 efibootmgr
 efitools
 egl-wayland
@@ -92,6 +95,7 @@ limine
 linux-firmware
 logrotate
 lsb-release
+lsp-plugins-lv2
 lsscsi
 lvm2
 man-db
@@ -106,6 +110,7 @@ modemmanager
 mtools
 nano
 nano-syntax-highlighting
+neovim
 netctl
 networkmanager
 networkmanager-openvpn
@@ -120,6 +125,7 @@ nss-mdns
 nvidia-settings
 nvidia-utils
 obsidian
+ollama
 opencl-nvidia
 openssh
 os-prober
@@ -196,3 +202,6 @@ xfsprogs
 xl2tpd
 xsettingsd
 ydotool
+yt-dlp
+zed
+zoxide

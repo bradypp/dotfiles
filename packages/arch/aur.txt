@@ -1,4 +1,8 @@
+devin-desktop
 kdotool
 megasync
+plex-desktop
+plex-media-server
+t3code-bin
 visual-studio-code-bin
 xdg-terminal-exec
