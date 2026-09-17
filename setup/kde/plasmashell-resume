@@ -1,0 +1,15 @@
+#!/usr/bin/bash
+# Enable the KDE-scoped Plasma shell resume listener after Stow deployment.
+set -euo pipefail
+
+readonly SERVICE=plasmashell-resume.service
+/usr/bin/python -c 'from gi.repository import Gio, GLib'
+/usr/bin/systemctl --user daemon-reload
+/usr/bin/systemctl --user enable "$SERVICE"
+if /usr/bin/systemctl --user is-active --quiet plasma-workspace.target; then
+    /usr/bin/systemctl --user restart "$SERVICE"
+    /usr/bin/systemctl --user is-active --quiet "$SERVICE"
+    printf '%s\n' 'Plasma shell resume refresh: enabled and active (KDE only)'
+else
+    printf '%s\n' 'Plasma shell resume refresh: enabled for the next KDE session'
+fi

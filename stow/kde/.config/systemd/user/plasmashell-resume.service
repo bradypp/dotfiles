@@ -1,0 +1,13 @@
+[Unit]
+Description=Refresh Plasma shell after resume (KDE only)
+BindsTo=plasma-workspace.target
+After=plasma-workspace.target
+PartOf=plasma-workspace.target
+
+[Service]
+ExecStart=/usr/bin/python %h/.local/libexec/plasmashell-resume
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=plasma-workspace.target

@@ -339,8 +339,6 @@ _launch=none
 applications=Ctrl+Shift+Esc
 
 [services][org.kde.spectacle.desktop]
-CurrentMonitorScreenShot=none
-OpenWithoutScreenshot=none
 RectangularRegionScreenShot=\tMeta+Shift+Print
 WindowUnderCursorScreenShot=\tMeta+Ctrl+Print
 _launch=Print

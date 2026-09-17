@@ -1,0 +1,45 @@
+#!/usr/bin/python
+# Restart only the running Plasma shell two seconds after logind resumes.
+import subprocess
+
+from gi.repository import Gio, GLib
+
+
+class ResumeListener:
+    def __init__(self):
+        self.pending = 0
+
+    def prepare_for_sleep(self, connection, sender, path, interface, signal, parameters):
+        sleeping, = parameters.unpack()
+        if sleeping:
+            if self.pending:
+                GLib.source_remove(self.pending)
+                self.pending = 0
+        elif not self.pending:
+            self.pending = GLib.timeout_add_seconds(2, self.restart_shell)
+
+    def restart_shell(self):
+        self.pending = 0
+        print('Resume: restarting the running Plasma shell', flush=True)
+        try:
+            subprocess.run([
+                '/usr/bin/systemctl', '--user', '--no-block', 'try-restart',
+                'plasma-plasmashell.service',
+            ], check=True)
+        except subprocess.CalledProcessError as error:
+            print(f'Plasma shell restart failed: {error}', flush=True)
+        return GLib.SOURCE_REMOVE
+
+    def run(self):
+        bus = Gio.bus_get_sync(Gio.BusType.SYSTEM, None)
+        bus.signal_subscribe(
+            'org.freedesktop.login1', 'org.freedesktop.login1.Manager',
+            'PrepareForSleep', '/org/freedesktop/login1', None,
+            Gio.DBusSignalFlags.NONE, self.prepare_for_sleep,
+        )
+        print('Listening for resume (KDE session only)', flush=True)
+        GLib.MainLoop().run()
+
+
+if __name__ == '__main__':
+    ResumeListener().run()
