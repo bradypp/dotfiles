@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "permissions": {
+    "allow": [
+      "Exec(sqlite3)",
+      "Exec(find)",
+      "Exec(ls)",
+      "Exec(grep)",
+      "Write(~/.devin/plans)"
+    ]
+  }
+}

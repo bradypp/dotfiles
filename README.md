@@ -97,7 +97,7 @@ The selected machine is saved in `~/.local/state/dotfiles/machine`. `machines/ho
 
 Drives are additive: a machine without a drive simply omits its keys, and the scripts skip it.
 
-`setup/hardware` confirms those values. It does not mount drives, edit `/etc/fstab`, modify Vorta, unlock Borg repositories, or run backups. `setup/storage MACHINE_CONFIG` applies the declared drives (it prompts for sudo): it backs up `/etc/fstab`, adds missing UUID entries (ntfs3, `nofail`), mounts them, and verifies them. `configure` runs it for the selected machine before `setup/hardware`, so validation sees the mounts; it is also safe to run by hand. It leaves machines without declared drives alone.
+`setup/hardware` confirms those values. It does not mount drives, edit `/etc/fstab`, modify Vorta, unlock Borg repositories, or run backups. `setup/storage MACHINE_CONFIG` applies the declared drives (it prompts for sudo): it backs up `/etc/fstab`, adds missing UUID entries (ntfs3, `nofail`), mounts them, and verifies them. `configure` runs it for the selected machine before `setup/hardware`, so validation sees the mounts; it is also safe to run by hand. It leaves machines without declared drives alone. `setup/mouse-wakeup` is another hand-run privileged applier, not part of `configure`: it installs a root udev rule enabling USB wakeup for the Logitech G502 X mouse so mouse input wakes the machine from sleep (`sudo ./setup/mouse-wakeup`, or `pkexec ./setup/mouse-wakeup`).
 
 ## Managing Stow files
 

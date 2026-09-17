@@ -1,0 +1,56 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "proxy": "",
+  "edit_predictions": {
+    "provider": "zed"
+  },
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false,
+    "anthropic_retention": false
+  },
+  "session": {
+    "trust_all_worktrees": true
+  },
+  "terminal": {
+    "font_family": ".ZedMono",
+    "font_size": 13.0
+  },
+  "project_panel": {
+    "auto_fold_dirs": false
+  },
+  "fast_scroll_sensitivity": 20.0,
+  "mouse_wheel_zoom": true,
+  "minimap": {
+    "show": "always"
+  },
+  "autosave": "on_focus_change",
+  "format_on_save": "on",
+  "agent_servers": {
+    "github-copilot-cli": {
+      "type": "registry"
+    },
+    "codex-acp": {
+      "default_config_options": {
+        "fast-mode": false,
+        "mode": "agent-full-access"
+      },
+      "type": "registry"
+    }
+  },
+  "base_keymap": "VSCode",
+  "ui_font_size": 16,
+  "buffer_font_size": 15,
+  "theme": {
+    "mode": "system",
+    "light": "One Light",
+    "dark": "Ayu Dark",
+  },
+}

@@ -1,0 +1,61 @@
+#!/usr/bin/bash
+# Persist USB wakeup for Logitech G502 X (Linux/udev, independent of desktop/distro).
+set -euo pipefail
+
+root=/
+case ${1:-} in
+    --root)
+        (($# == 2)) && [[ $2 == /* && -d $2 ]] || {
+            printf '%s\n' 'Usage: setup/mouse-wakeup [--root EXISTING_ABSOLUTE_DIRECTORY]' >&2
+            exit 2
+        }
+        root=$2 ;;
+    -h|--help)
+        printf '%s\n' 'Usage: sudo ./setup/mouse-wakeup' \
+            '       ./setup/mouse-wakeup --root DIRECTORY  (staging only; no live udev actions)'
+        exit 0 ;;
+    '') ;;
+    *) printf '%s\n' 'Unknown argument; use --help.' >&2; exit 2 ;;
+esac
+root=$(realpath -- "$root")
+if [[ $root == / && $EUID != 0 ]]; then
+    printf 'Administrator access required. Run: sudo %q\n' "$(realpath -- "$0")" >&2
+    exit 1
+fi
+command -v udevadm >/dev/null
+rule="$root/etc/udev/rules.d/90-logitech-g502x-wakeup.rules"
+tmp=$(mktemp -d)
+trap 'rm -rf -- "$tmp"' EXIT
+printf '%s\n' '# Managed by dotfiles setup/mouse-wakeup: Logitech G502 X only.' \
+    'ACTION=="add|change", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="046d", ATTR{idProduct}=="c099", TEST=="power/wakeup", ATTR{power/wakeup}="enabled"' \
+    >"$tmp/90-logitech-g502x-wakeup.rules"
+udevadm verify "$tmp/90-logitech-g502x-wakeup.rules"
+if [[ -f $rule ]] && cmp -s -- "$tmp/90-logitech-g502x-wakeup.rules" "$rule"; then
+    printf 'Already installed: %s\n' "$rule"
+else
+    [[ -e $rule ]] && {
+        printf 'Refusing to overwrite existing: %s\n' "$rule" >&2
+        exit 1
+    }
+    install -D -m 0644 -- "$tmp/90-logitech-g502x-wakeup.rules" "$rule"
+    printf 'Installed: %s\n' "$rule"
+fi
+if [[ $root == / ]]; then
+    udevadm control --reload-rules
+    udevadm trigger --action=change --subsystem-match=usb --attr-match=idVendor=046d --attr-match=idProduct=c099
+    udevadm settle --timeout=10
+    found=0
+    for device in /sys/bus/usb/devices/*; do
+        [[ -r $device/idVendor && -r $device/idProduct ]] || continue
+        [[ $(<"$device/idVendor") == 046d && $(<"$device/idProduct") == c099 ]] || continue
+        found=1
+        [[ -r $device/power/wakeup && $(<"$device/power/wakeup") == enabled ]] || {
+            printf 'Wakeup verification failed: %s\n' "$device" >&2
+            exit 1
+        }
+        printf 'Verified: %s wakeup=enabled\n' "$device"
+    done
+    if ((found == 0)); then
+        printf '%s\n' 'Mouse not connected; rule will apply when plugged in.'
+    fi
+fi
