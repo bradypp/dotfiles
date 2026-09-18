@@ -51,9 +51,7 @@ resize_pane_left = "ctrl+alt+shift+left"
 resize_pane_down = "ctrl+alt+shift+down"
 resize_pane_up = "ctrl+alt+shift+up"
 resize_pane_right = "ctrl+alt+shift+right"
-
-# No tmux equivalent; herdr's default prefix+shift+p is taken by previous session
-rename_pane = "prefix+shift+o"
+rename_pane = "prefix+shift+p"
 
 # Windows -> tabs
 new_tab = "prefix+c"
@@ -71,8 +69,8 @@ move_tab_next = "alt+shift+right"
 new_workspace = "prefix+shift+c"
 rename_workspace = "prefix+shift+r"
 close_workspace = "prefix+shift+k"
-previous_workspace = ["prefix+shift+p", "alt+up"]
-next_workspace = ["prefix+shift+n", "alt+down"]
+previous_workspace = ["prefix+shift+n", "alt+up"]
+next_workspace = ["prefix+shift+m", "alt+down"]
 
 [ui]
 show_agent_labels_on_pane_borders = false
@@ -104,3 +102,43 @@ window_title = "{hostname}: {workspace}"
 
 [ui.toast]
 delivery = "herdr"
+
+
+# herdr-annotate plugin
+# Terminal annotations
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "annotate.capture"
+description = "annotate text"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "plugin_action"
+command = "annotate.copy-context"
+description = "copy annotations as context"
+
+[[keys.command]]
+key = "prefix+ctrl+a"
+type = "plugin_action"
+command = "annotate.copy-archive"
+description = "copy annotations as context and archive them"
+
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "annotate.manage"
+description = "manage annotations"
+
+# Document review (plannotator-tui)
+[[keys.command]]
+key = "prefix+o"
+type = "plugin_action"
+command = "annotate.open"
+description = "review documents in this folder"
+
+[[keys.command]]
+key = "prefix+shift+o"
+type = "plugin_action"
+command = "annotate.last"
+description = "review the agent's last reply"

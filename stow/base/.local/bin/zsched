@@ -1,0 +1,575 @@
+#!/usr/bin/env zsh
+# zsched — a thin zsh-friendly wrapper around systemd user timers.
+#
+# - GNU date handles one-off dates/times.
+# - systemd handles recurring schedule parsing, validation and execution.
+# - Commands run via /usr/bin/zsh -ic so ~/.zshrc aliases/functions work.
+
+set -euo pipefail
+
+CONFIG_DIR="${HOME}/.config/systemd/user"
+STATE_DIR="${HOME}/.local/state/zsched/jobs"
+
+die() {
+  printf 'zsched: %s\n' "$*" >&2
+  exit 1
+}
+
+usage() {
+  cat <<'EOF'
+zsched — schedule one-off or recurring zsh commands with systemd
+
+USAGE
+
+  # One-off
+  zsched WHEN 'COMMAND'
+  zsched --dry-run WHEN 'COMMAND'
+  zsched -n WHEN 'COMMAND'
+
+  # Recurring
+  zsched every SCHEDULE 'COMMAND'
+  zsched --dry-run every SCHEDULE 'COMMAND'
+  zsched -n every SCHEDULE 'COMMAND'
+
+  # Manage
+  zsched list
+  zsched logs UNIT
+  zsched cancel UNIT
+  zsched help
+
+
+ONE-OFF — WHEN
+
+One-off dates/times are parsed by GNU `date -d`.
+
+For RELATIVE one-off times, use worded durations consistently:
+
+  zsched '30 minutes' 'echo hello'
+  zsched '2 hours' 'echo hello'
+  zsched '1 day' 'echo hello'
+  zsched '1 week' 'echo hello'
+  zsched '1 month' 'echo hello'
+
+For clock/date based one-offs:
+
+  zsched 03:00 'echo hello'
+  zsched 3am 'echo hello'
+  zsched 'tomorrow 03:00' 'echo hello'
+  zsched 'tomorrow 3am' 'echo hello'
+  zsched 'next friday 18:00' 'echo hello'
+  zsched '2026-09-20 14:30' 'echo hello'
+
+Bare clock times such as 03:00 or 3am mean the NEXT occurrence:
+if today's time has already passed, zsched uses tomorrow.
+
+Do not use compact systemd-style durations such as `2h` for one-offs.
+GNU date does not interpret every compact form the same way systemd does.
+
+
+RECURRING — SCHEDULE
+
+Recurring schedules are passed to systemd instead of being reimplemented here.
+
+1. Calendar schedules
+
+  zsched every daily 'command'
+  zsched every weekly 'command'
+  zsched every monthly 'command'
+  zsched every '03:00' 'command'
+  zsched every 'Mon..Fri 08:30' 'command'
+  zsched every 'Sat,Sun 10:00' 'command'
+  zsched every 'Monday 09:00' 'command'
+  zsched every '*-*-01 09:00' 'command'
+
+`day`, `week`, and `month` are convenience aliases for the native systemd
+calendar aliases `daily`, `weekly`, and `monthly`:
+
+  zsched every day 'command'      # same as daily
+  zsched every week 'command'     # same as weekly
+  zsched every month 'command'    # same as monthly
+
+Their native systemd meanings are:
+
+  daily    -> every day at 00:00
+  weekly   -> every Monday at 00:00
+  monthly  -> the 1st of every month at 00:00
+
+Validated by:
+
+  systemd-analyze calendar SCHEDULE
+
+2. Interval schedules
+
+For consistency with one-offs, the examples use worded durations:
+
+  zsched every '30 minutes' 'command'
+  zsched every '2 hours' 'command'
+  zsched every '1 day' 'command'
+  zsched every '1 week' 'command'
+  zsched every '1 month' 'command'
+
+systemd also accepts compact timespans for recurring intervals:
+
+  30min
+  2h
+  1d
+  1w
+  1month
+
+Validated by:
+
+  systemd-analyze timespan SCHEDULE
+
+For interval schedules, the first run happens one interval after the timer is
+enabled, then repeats at that interval.
+
+Native syntax reference:
+
+  man systemd.time
+
+
+SMALL CONVENIENCE ALIASES
+
+zsched only translates a few obvious friendly forms before handing them to
+systemd:
+
+  day              -> daily
+  week             -> weekly
+  month            -> monthly
+  'weekday 08:30'  -> 'Mon..Fri 08:30'
+  'weekdays 08:30' -> 'Mon..Fri 08:30'
+  'weekend 10:00'  -> 'Sat,Sun 10:00'
+  'weekends 10:00' -> 'Sat,Sun 10:00'
+  'day 03:00'      -> '03:00'
+  'daily 03:00'    -> '03:00'
+  '3am'            -> '03:00'
+  '6:15pm'         -> '18:15'
+
+Everything else is systemd's syntax, not zsched's own scheduling language.
+
+
+COMMAND
+
+COMMAND must be ONE quoted shell string:
+
+  zsched 03:00 'echo "hello world"'
+
+Scheduled commands run as:
+
+  /usr/bin/zsh -ic 'COMMAND'
+
+That loads your interactive zsh setup, so aliases/functions in ~/.zshrc work.
+
+Examples:
+
+  zsched 03:00 \
+    'omp --resume SESSION_ID -p "continue the task"'
+
+  zsched every 2h \
+    'omp --resume SESSION_ID -p "check progress and continue"'
+
+  zsched every 'Mon..Fri 08:30' \
+    'cd ~/repos/my-app && npm test && npm run build'
+
+
+DRY RUN
+
+Dry run validates and resolves without scheduling anything:
+
+  zsched --dry-run 03:00 'echo hello'
+  zsched -n every 'Mon..Fri 08:30' 'echo hello'
+
+For recurring calendar schedules, dry-run also shows systemd's normalized
+form and upcoming executions.
+
+
+WORKING DIRECTORY
+
+By default, the job runs from the directory where you call zsched.
+
+Override it with:
+
+  ZSCHED_CWD=~/repos/other-project zsched 03:00 'npm test'
+
+
+MANAGE
+
+List pending/active zsched timers:
+
+  zsched list
+
+Show logs:
+
+  zsched logs UNIT
+
+Cancel:
+
+  zsched cancel UNIT
+
+Recurring jobs are persisted as normal systemd user units under:
+
+  ~/.config/systemd/user/
+
+Their command bodies are stored under:
+
+  ~/.local/state/zsched/jobs/
+
+Cancelling a recurring job disables it and removes those generated files.
+
+One-off jobs are transient and auto-clean after they run.
+
+
+PERSISTENCE
+
+Recurring calendar jobs use Persistent=true.
+
+Recurring jobs survive reboot because they are normal systemd user units.
+To allow user timers to run while fully logged out:
+
+  loginctl enable-linger "$USER"
+
+EOF
+}
+
+is_bare_clock() {
+  printf '%s\n' "$1" | grep -Eqi \
+    '^(([01]?[0-9]|2[0-3]):[0-5][0-9]|([1-9]|1[0-2])(:[0-5][0-9])?[[:space:]]?(am|pm))$'
+}
+
+resolve_one_off() {
+  local input="$1"
+  local resolved now target
+
+  # Compact forms belong to systemd timespans. Some of them are ambiguous to
+  # GNU date (notably values such as 2h), so require worded one-off durations.
+  if printf '%s\n' "$input" | grep -Eq '^[0-9]+(min|h|d|w|month|months)$'; then
+    die "for one-off relative durations use words, e.g. '2 hours'; compact forms such as 2h are for 'zsched every'"
+  fi
+
+  resolved="$(date -d "$input" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" \
+    || die "could not parse WHEN with GNU date: $input"
+
+  now="$(date +%s)"
+  target="$(date -d "$resolved" +%s)"
+
+  # Bare clocks mean the next occurrence.
+  if is_bare_clock "$input" && (( target <= now )); then
+    resolved="$(date -d "tomorrow $input" '+%Y-%m-%d %H:%M:%S' 2>/dev/null)" \
+      || die "could not parse clock time: $input"
+    target="$(date -d "$resolved" +%s)"
+  fi
+
+  (( target > now )) \
+    || die "WHEN must resolve to a future time: $resolved"
+
+  printf '%s\n' "$resolved"
+}
+
+to_24h_if_ampm() {
+  local value="$1"
+
+  if printf '%s\n' "$value" | grep -Eqi '^([1-9]|1[0-2])(:[0-5][0-9])?[[:space:]]?(am|pm)$'; then
+    date -d "today $value" '+%H:%M' 2>/dev/null
+  else
+    printf '%s\n' "$value"
+  fi
+}
+
+friendly_calendar_sugar() {
+  local input="$1"
+  local lower head rest
+
+  lower="$(printf '%s' "$input" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]+/ /g')"
+
+  # Friendly singular aliases for native systemd calendar aliases.
+  case "$lower" in
+    day)
+      printf 'daily\n'
+      return
+      ;;
+    week)
+      printf 'weekly\n'
+      return
+      ;;
+    month)
+      printf 'monthly\n'
+      return
+      ;;
+  esac
+
+  # Bare 12-hour clock -> native 24-hour systemd clock.
+  if printf '%s\n' "$lower" | grep -Eqi '^([1-9]|1[0-2])(:[0-5][0-9])?[[:space:]]?(am|pm)$'; then
+    to_24h_if_ampm "$lower"
+    return
+  fi
+
+  if [[ "$lower" == *" "* ]]; then
+    head="${lower%% *}"
+    rest="${lower#* }"
+
+    case "$head" in
+      weekday|weekdays)
+        printf 'Mon..Fri %s\n' "$(to_24h_if_ampm "$rest")"
+        return
+        ;;
+      weekend|weekends)
+        printf 'Sat,Sun %s\n' "$(to_24h_if_ampm "$rest")"
+        return
+        ;;
+      day|daily)
+        printf '%s\n' "$(to_24h_if_ampm "$rest")"
+        return
+        ;;
+    esac
+  fi
+
+  # Preserve native systemd syntax/casing otherwise.
+  printf '%s\n' "$input"
+}
+
+detect_repeat_kind() {
+  local spec="$1"
+
+  if systemd-analyze timespan "$spec" >/dev/null 2>&1; then
+    printf 'interval\n'
+    return
+  fi
+
+  if systemd-analyze calendar "$spec" >/dev/null 2>&1; then
+    printf 'calendar\n'
+    return
+  fi
+
+  die "SCHEDULE is neither a valid systemd timespan nor calendar expression: $spec"
+}
+
+write_recurring_units() {
+  local unit="$1"
+  local kind="$2"
+  local schedule="$3"
+  local cwd="$4"
+  local cmd="$5"
+
+  local service_file="${CONFIG_DIR}/${unit}.service"
+  local timer_file="${CONFIG_DIR}/${unit}.timer"
+  local job_file="${STATE_DIR}/${unit}.zsh"
+  local quoted_cwd
+
+  mkdir -p "$CONFIG_DIR" "$STATE_DIR"
+
+  quoted_cwd="$(printf '%q' "$cwd")"
+
+  cat > "$job_file" <<EOF
+# Generated by zsched.
+cd -- ${quoted_cwd}
+${cmd}
+EOF
+  chmod 700 "$job_file"
+
+  cat > "$service_file" <<EOF
+[Unit]
+Description=zsched recurring command
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/zsh -ic 'source "\$HOME/.local/state/zsched/jobs/${unit}.zsh"'
+EOF
+
+  if [[ "$kind" == "calendar" ]]; then
+    cat > "$timer_file" <<EOF
+[Unit]
+Description=zsched recurring calendar timer
+
+[Timer]
+OnCalendar=${schedule}
+Persistent=true
+Unit=${unit}.service
+
+[Install]
+WantedBy=timers.target
+EOF
+  else
+    cat > "$timer_file" <<EOF
+[Unit]
+Description=zsched recurring interval timer
+
+[Timer]
+OnActiveSec=${schedule}
+OnUnitActiveSec=${schedule}
+Unit=${unit}.service
+
+[Install]
+WantedBy=timers.target
+EOF
+  fi
+
+  systemctl --user daemon-reload
+  systemctl --user enable --now "${unit}.timer"
+}
+
+cancel_job() {
+  local unit="$1"
+  local service_file timer_file job_file
+
+  unit="${unit%.service}"
+  unit="${unit%.timer}"
+
+  service_file="${CONFIG_DIR}/${unit}.service"
+  timer_file="${CONFIG_DIR}/${unit}.timer"
+  job_file="${STATE_DIR}/${unit}.zsh"
+
+  if [[ -f "$service_file" || -f "$timer_file" || -f "$job_file" ]]; then
+    systemctl --user disable --now "${unit}.timer" >/dev/null 2>&1 || true
+    systemctl --user stop "${unit}.service" >/dev/null 2>&1 || true
+    rm -f "$service_file" "$timer_file" "$job_file"
+    systemctl --user daemon-reload
+    printf 'Cancelled and removed recurring job: %s\n' "$unit"
+    return
+  fi
+
+  systemctl --user stop "${unit}.timer" "${unit}.service" >/dev/null 2>&1 || true
+  printf 'Cancelled: %s\n' "$unit"
+}
+
+[[ $# -ge 1 ]] || { usage; exit 1; }
+
+dry_run=0
+if [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]]; then
+  dry_run=1
+  shift
+fi
+
+case "${1:-}" in
+  help|-h|--help)
+    (( dry_run == 0 )) || die "--dry-run only applies to scheduling"
+    usage
+    exit 0
+    ;;
+  list)
+    (( dry_run == 0 )) || die "--dry-run only applies to scheduling"
+    [[ $# -eq 1 ]] || die "usage: zsched list"
+    systemctl --user list-timers --all 'zsched-*'
+    exit 0
+    ;;
+  logs)
+    (( dry_run == 0 )) || die "--dry-run only applies to scheduling"
+    [[ $# -eq 2 ]] || die "usage: zsched logs UNIT"
+    unit="${2%.service}"
+    unit="${unit%.timer}"
+    journalctl --user -u "${unit}.service"
+    exit 0
+    ;;
+  cancel)
+    (( dry_run == 0 )) || die "--dry-run only applies to scheduling"
+    [[ $# -eq 2 ]] || die "usage: zsched cancel UNIT"
+    cancel_job "$2"
+    exit 0
+    ;;
+esac
+
+mode="once"
+if [[ "${1:-}" == "every" ]]; then
+  mode="every"
+  shift
+
+  # Also allow: zsched every --dry-run ...
+  if [[ "${1:-}" == "--dry-run" || "${1:-}" == "-n" ]]; then
+    dry_run=1
+    shift
+  fi
+fi
+
+[[ $# -eq 2 ]] || {
+  if [[ "$mode" == "every" ]]; then
+    die "usage: zsched every SCHEDULE 'COMMAND'"
+  else
+    die "usage: zsched WHEN 'COMMAND'"
+  fi
+}
+
+schedule="$1"
+cmd="$2"
+
+[[ -n "$cmd" ]] || die "COMMAND cannot be empty"
+
+cwd="${ZSCHED_CWD:-$PWD}"
+cwd="${cwd/#\~/$HOME}"
+[[ -d "$cwd" ]] || die "working directory does not exist: $cwd"
+
+if [[ "$mode" == "once" ]]; then
+  resolved="$(resolve_one_off "$schedule")"
+
+  if (( dry_run )); then
+    printf 'Dry run — nothing scheduled\n\n'
+    printf '  type:  one-off\n'
+    printf '  when:  %s\n' "$resolved"
+    printf '  cwd:   %s\n' "$cwd"
+    printf '  shell: /usr/bin/zsh -ic\n'
+    printf '  cmd:   %s\n\n' "$cmd"
+    printf '✓ valid\n'
+    exit 0
+  fi
+
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  unit="zsched-${stamp}-$$"
+
+  systemd-run --user \
+    --unit="$unit" \
+    --collect \
+    --on-calendar="$resolved" \
+    --working-directory="$cwd" \
+    /usr/bin/zsh -ic "$cmd"
+
+  printf '\nScheduled one-off:\n'
+  printf '  unit: %s\n' "$unit"
+  printf '  when: %s\n' "$resolved"
+  printf '  cwd:  %s\n' "$cwd"
+  printf '  cmd:  %s\n\n' "$cmd"
+  printf 'Pending: zsched list\n'
+  printf 'Logs:    zsched logs %s\n' "$unit"
+  printf 'Cancel:  zsched cancel %s\n' "$unit"
+  exit 0
+fi
+
+# Recurring schedules are systemd-native.
+native_schedule="$(friendly_calendar_sugar "$schedule")"
+kind="$(detect_repeat_kind "$native_schedule")"
+
+if (( dry_run )); then
+  printf 'Dry run — nothing scheduled\n\n'
+  printf '  type:     recurring\n'
+  printf '  kind:     %s\n' "$kind"
+  printf '  input:    %s\n' "$schedule"
+  if [[ "$native_schedule" != "$schedule" ]]; then
+    printf '  systemd:  %s\n' "$native_schedule"
+  fi
+  printf '  cwd:      %s\n' "$cwd"
+  printf '  shell:    /usr/bin/zsh -ic\n'
+  printf '  cmd:      %s\n\n' "$cmd"
+
+  if [[ "$kind" == "calendar" ]]; then
+    systemd-analyze calendar --iterations=5 "$native_schedule"
+  else
+    systemd-analyze timespan "$native_schedule"
+  fi
+
+  printf '\n✓ valid\n'
+  exit 0
+fi
+
+stamp="$(date +%Y%m%d-%H%M%S)"
+unit="zsched-every-${stamp}-$$"
+
+write_recurring_units "$unit" "$kind" "$native_schedule" "$cwd" "$cmd"
+
+printf '\nScheduled recurring job:\n'
+printf '  unit:     %s\n' "$unit"
+printf '  kind:     %s\n' "$kind"
+printf '  schedule: %s\n' "$native_schedule"
+printf '  cwd:      %s\n' "$cwd"
+printf '  cmd:      %s\n\n' "$cmd"
+printf 'Pending: zsched list\n'
+printf 'Logs:    zsched logs %s\n' "$unit"
+printf 'Cancel:  zsched cancel %s\n' "$unit"
